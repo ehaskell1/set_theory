@@ -4,57 +4,6 @@ universe u
 
 namespace Set
 
-lemma pair_sep_eq_is_fun {A B : Set} {f : Set → Set} : (pair_sep (λ a b, b = f a) A B).is_function :=
-begin
-  rw is_function_iff, split,
-  { exact pair_sep_is_rel, },
-  { simp only [pair_mem_pair_sep, and_imp],
-    intros, finish, },
-end
-
-lemma pair_sep_eq_dom_eq {A B : Set} {f : Set → Set} (h : ∀ a ∈ A, f a ∈ B) : (pair_sep (λ a b, b = f a) A B).dom = A :=
-begin
-  apply ext, intro a,
-  simp only [mem_dom, pair_mem_pair_sep, exists_eq_right, exists_and_distrib_left, and_iff_left_iff_imp],
-  intro ha, finish,
-end
-
-lemma pair_sep_eq_ran_eq {A B : Set} {f : Set → Set} (h : ∀ b ∈ B, ∃ a, a ∈ A ∧ b = f a)
-: (pair_sep (λ a b, b = f a) A B).ran = B :=
-begin
-  apply ext, intro b, simp only [mem_ran, pair_mem_pair_sep], split,
-  { rintro ⟨t, _, hb, _⟩, assumption, },
-  { intro hb, specialize h _ hb, finish, },
-end
-
-lemma pair_sep_eq_ran_sub {A B : Set} {p : Set → Set → Prop} : (pair_sep p A B).ran ⊆ B :=
-begin
-  intros b hb, simp only [mem_ran, pair_mem_pair_sep] at hb, finish,
-end
-
-lemma pair_sep_eq_oto {A B : Set} {f : Set → Set} (hf : ∀ ⦃a₁ : Set⦄, a₁ ∈ A → ∀ ⦃a₂ : Set⦄, a₂ ∈ A → f a₁ = f a₂ → a₁ = a₂) : (pair_sep (λ a b, b = f a) A B).one_to_one :=
-begin
-  intros b hb, simp only [mem_ran, pair_mem_pair_sep] at hb, rcases hb with ⟨a, ha, hb, he⟩,
-  simp only [pair_mem_pair_sep], refine ⟨_, ⟨ha, hb, he⟩, λ a' ha', _⟩, rcases ha' with ⟨ha', -, he'⟩,
-  rw he' at he, exact hf ha' ha he,
-end
-
-def pair_sep_eq (A B : Set) (f : Set → Set) : Set := pair_sep (λ a b, b = f a) A B
-
-@[simp]
-lemma pair_mem_pair_sep_eq {A B : Set} {f : Set → Set} {a b : Set} : a.pair b ∈ pair_sep_eq A B f ↔ a ∈ A ∧ b ∈ B ∧ b = f a :=
-by simp only [pair_sep_eq, pair_mem_pair_sep]
-
-lemma pair_sep_eq_fun_value {A B : Set} {f : Set → Set} {a : Set} (ha : a ∈ (pair_sep_eq A B f).dom) : (pair_sep_eq A B f).fun_value a = f a :=
-begin
-  symmetry, apply fun_value_def pair_sep_eq_is_fun, rw [pair_mem_pair_sep],
-  simp only [mem_dom, pair_mem_pair_sep_eq] at ha, rcases ha with ⟨b, ha, hb, he⟩, rw he at hb,
-  exact ⟨ha, hb, rfl⟩,
-end
-
-lemma pair_sep_eq_into {A B : Set} {f : Set → Set} (h : ∀ a ∈ A, f a ∈ B) : (pair_sep_eq A B f).into_fun A B :=
-⟨pair_sep_eq_is_fun, pair_sep_eq_dom_eq h, pair_sep_eq_ran_sub⟩
-
 def succ (a : Set) : Set := {a} ∪ a
 
 @[simp]
