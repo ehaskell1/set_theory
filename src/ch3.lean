@@ -71,6 +71,11 @@ begin
   exact hS _ hx,
 end
 
+lemma Union_is_rel {S : Set} (h : ∀ ⦃x : Set⦄, x ∈ S → x.is_rel) : S.Union.is_rel :=
+begin
+  intros z hz, rw mem_Union at hz, rcases hz with ⟨x, hx, hz⟩, exact h hx _ hz,
+end
+
 lemma rel_eq {R : Set} (hR : R.is_rel) {S : Set} (hS : S.is_rel) (h : ∀ ⦃x y : Set⦄, x.pair y ∈ R ↔ x.pair y ∈ S) : R = S :=
 begin
   apply ext, intro z, split,
@@ -103,6 +108,35 @@ begin
   simp only [mem_pair_sep] at hz,
   rcases hz with ⟨a, ha, b, hb, he, hp⟩,
   exact ⟨a, b, he⟩,
+end
+
+lemma prod_is_rel {X Y : Set} : (X.prod Y).is_rel := pair_sep_is_rel
+
+lemma sub_rel_is_rel {X Y : Set} (hY : Y.is_rel) (XY : X ⊆ Y) : X.is_rel :=
+λ z, assume zX, hY _ (XY zX)
+
+theorem rel_sub {R : Set} (hR : R.is_rel) {S : Set} (hext : ∀ ⦃x y : Set⦄, x.pair y ∈ R → x.pair y ∈ S) : R ⊆ S :=
+begin
+  intros z hz, specialize hR z hz, rcases hR with ⟨x, y, he⟩, subst he, exact hext hz,
+end
+
+theorem rel_ext {R : Set} (hR : R.is_rel) {S : Set} (hS : S.is_rel) (hext : ∀ ⦃x y : Set⦄, x.pair y ∈ R ↔ x.pair y ∈ S) : R = S :=
+begin
+  rw eq_iff_subset_and_subset, refine ⟨rel_sub hR _, rel_sub hS _⟩,
+    intros x y hxy, exact (@hext x y).mp hxy,
+  intros x y hxy, exact (@hext x y).mpr hxy,
+end
+
+lemma union_prod {A B C : Set} : (A ∪ B).prod C = (A.prod C) ∪ (B.prod C) :=
+begin
+  apply rel_ext prod_is_rel (union_rel_is_rel prod_is_rel prod_is_rel),
+  simp only [pair_mem_prod, mem_union, or_and_distrib_right, iff_self, forall_const],
+end
+
+lemma prod_union {A B C : Set} : A.prod (B ∪ C) = (A.prod B) ∪ (A.prod C) :=
+begin
+  apply rel_ext prod_is_rel (union_rel_is_rel prod_is_rel prod_is_rel),
+  simp only [pair_mem_prod, mem_union, and_or_distrib_left, iff_self, forall_const],
 end
 
 lemma pair_sep_sub_prod {p : Set → Set → Prop} {x y : Set} : pair_sep p x y ⊆ x.prod y :=
@@ -149,6 +183,16 @@ begin
   exact L3D_right h,
 end
 
+lemma ran_empty_eq_empty : ran ∅ = ∅ :=
+begin
+  rw eq_empty, intros y hy, rw mem_ran at hy, rcases hy with ⟨x, hxy⟩, exact mem_empty _ hxy,
+end
+
+lemma dom_empty_eq_empty : dom ∅ = ∅ :=
+begin
+  rw eq_empty, intros x hx, rw mem_dom at hx, rcases hx with ⟨y, hxy⟩, exact mem_empty _ hxy,
+end
+
 lemma pair_sep_dom_sub {p : Set → Set → Prop} {x y : Set} : (pair_sep p x y).dom ⊆ x :=
 begin
   intros z hz, simp only [mem_dom, pair_mem_pair_sep] at hz, finish,
@@ -170,6 +214,7 @@ begin
   { rintro hx, rw hx, exact ⟨_, rfl⟩, },
 end
 
+-- chapter 3 problem 6
 lemma rel_sub_dom_ran {R : Set} : R.is_rel ↔ R ⊆ R.dom.prod R.ran :=
 begin
   split,
@@ -216,20 +261,20 @@ begin
   exact ⟨x, h hx⟩,
 end
 
-theorem ch3_p6 {A : Set} : A.is_rel ↔ A ⊆ A.dom.prod A.ran :=
+lemma ran_Union_eq_Union_ran {C A : Set} (hA : ∀ ⦃y⦄, y ∈ A ↔ ∃ f : Set, y ∈ f.ran ∧ f ∈ C) : A = C.Union.ran :=
 begin
-  split; intro h,
-  { intros p h₂,
-    rcases h _ h₂ with ⟨x, y, h₃⟩,
-    simp only [h₃, pair_mem_prod, mem_dom, mem_ran],
-    split,
-      refine ⟨y, _⟩, rw ←h₃, exact h₂,
-    refine ⟨x, _⟩, rw ←h₃, exact h₂, },
-  { intros p h₂,
-    specialize h h₂,
-    simp only [mem_prod] at h,
-    rcases h with ⟨x, h₃, y, h₄, he⟩,
-    exact ⟨x, y, he⟩, },
+  apply ext,
+  simp only [hA, mem_ran], intro y, split,
+    rintro ⟨f, ⟨x, hxy⟩, hf⟩, use x, rw mem_Union, exact ⟨_, hf, hxy⟩,
+  rintro ⟨x, hxy⟩, rw mem_Union at hxy, rcases hxy with ⟨f, hf, hxy⟩, exact ⟨_, ⟨_, hxy⟩, hf⟩,
+end
+
+lemma dom_Union_eq_Union_dom {C A : Set} (hA : ∀ ⦃x⦄, x ∈ A ↔ ∃ f : Set, x ∈ f.dom ∧ f ∈ C) : A = C.Union.dom :=
+begin
+  apply ext,
+  simp only [hA, mem_dom], intro x, split,
+    rintro ⟨f, ⟨y, hxy⟩, hf⟩, use y, rw mem_Union, exact ⟨_, hf, hxy⟩,
+  rintro ⟨y, hxy⟩, rw mem_Union at hxy, rcases hxy with ⟨f, hf, hxy⟩, exact ⟨_, ⟨_, hxy⟩, hf⟩,
 end
 
 def pow : Set → ℕ → Set
@@ -364,6 +409,13 @@ begin
   { rw he, apply fun_value_def' hf, assumption, },
 end
 
+lemma one_to_one_iff {R : Set} : R.one_to_one ↔ ∀ {y x x' : Set}, x.pair y ∈ R → x'.pair y ∈ R → x = x' :=
+begin
+  simp only [one_to_one, mem_ran], split,
+    intros h y x x' hxy hxy', apply unique_of_exists_unique (h _ ⟨_, hxy⟩) hxy hxy',
+  rintros h y ex, apply exists_unique_of_exists_of_unique ex, intros x x' hxy hxy', exact h hxy hxy',
+end
+
 lemma onto_of_into {F A B : Set} (hf : F.into_fun A B) (he : F.ran = B) : F.onto_fun A B :=
 ⟨is_function_of_into hf, dom_eq_of_into hf, he⟩
 
@@ -380,6 +432,14 @@ lemma into_of_into_ran_sub {F A B C : Set} (h : B ⊆ C) (hf : F.into_fun A B) :
 lemma into_of_onto_ran_sub {F A B C : Set} (h : B ⊆ C) (hf : F.onto_fun A B) : F.into_fun A C :=
 into_of_into_ran_sub h (into_of_onto hf)
 
+lemma singleton_is_fun {x y : Set} : is_function {x.pair y} :=
+begin
+  rw [is_function_iff], split,
+    exact singleton_is_rel,
+  intros a b b' hab hab', rw [mem_singleton] at hab hab', rw ←hab' at hab,
+  exact (pair_inj hab).right,
+end
+
 lemma union_singleton_is_fun {F : Set} (hF : F.is_function) {x y : Set} (hx : x ∉ F.dom) : (F ∪ {x.pair y}).is_function :=
 begin
   rw is_function_iff, split,
@@ -391,6 +451,16 @@ begin
       exfalso, apply hx, rw mem_dom, rw (pair_inj hb').left at hb, exact ⟨_, hb⟩,
     exfalso, apply hx, rw mem_dom, rw (pair_inj hb).left at hb', exact ⟨_, hb'⟩,
   rw ←hb' at hb, exact (pair_inj hb).right,
+end
+
+lemma union_singleton_one_to_one {F : Set} (hF : F.one_to_one) {x y : Set} (hy : y ∉ F.ran) : (F ∪ {x.pair y}).one_to_one :=
+begin
+  rw one_to_one_iff at *, simp only [mem_union, mem_singleton],
+  rintros b a a' (hab|hab) (hab'|hab'),
+        exact hF hab hab',
+      exfalso, apply hy, rw mem_ran, rw (pair_inj hab').right at hab, exact ⟨_, hab⟩,
+    exfalso, apply hy, rw mem_ran, rw (pair_inj hab).right at hab', exact ⟨_, hab'⟩,
+  rw [(pair_inj hab).left, (pair_inj hab').left],
 end
 
 @[simp]
@@ -425,7 +495,7 @@ end
 
 def comp (F G : Set) : Set := pair_sep (λ a b, ∃ t : Set, a.pair t ∈ G ∧ t.pair b ∈ F) G.dom F.ran
 
-lemma comp_rel (F G : Set) : (F.comp G).is_rel := pair_sep_is_rel
+lemma comp_rel {F G : Set} : (F.comp G).is_rel := pair_sep_is_rel
 
 @[simp]
 lemma mem_comp {F G p : Set} : p ∈ F.comp G ↔ ∃ (a b c : Set), p = a.pair c ∧ a.pair b ∈ G ∧ b.pair c ∈ F :=
@@ -517,6 +587,18 @@ begin
   intro hxA, rw ←mem_dom, exact hA hxA,
 end
 
+lemma restrict_dom_inter {F A : Set} : (F.restrict A).dom = F.dom ∩ A :=
+begin
+  apply ext,
+  simp only [mem_dom, mem_inter, pair_mem_restrict, iff_self, exists_and_distrib_right, implies_true_iff],
+end
+
+lemma restrict_fun_value' {F : Set} (hf : F.is_function) {x : Set} (hx : x ∈ F.dom) {A : Set} (hxA : x ∈ A) : (F.restrict A).fun_value x = F.fun_value x :=
+begin
+  symmetry, apply fun_value_def (restrict_is_function hf), rw pair_mem_restrict,
+  exact ⟨fun_value_def' hf hx, hxA⟩,
+end
+
 lemma restrict_one_to_one {F : Set} (hf : F.is_function) (hoto : F.one_to_one) {A : Set} (hA : A ⊆ F.dom) : (F.restrict A).one_to_one :=
 begin
   apply one_to_one_of (restrict_is_function hf),
@@ -562,6 +644,14 @@ lemma img_subset_ran {F A : Set} : F.img A ⊆ F.ran :=
 begin
   intro y, simp only [mem_img, mem_ran, and_imp, exists_imp_distrib],
   intros x hxA hxyF, exact ⟨_, hxyF⟩,
+end
+
+lemma img_singleton_eq {F : Set} (hF : F.is_function) {x : Set} (hx : x ∈ F.dom) : F.img {x} = {F.fun_value x} :=
+begin
+  have h : {x} ⊆ F.dom, intros z hz, rw mem_singleton at hz, subst hz, exact hx,
+  apply ext, simp only [mem_singleton, mem_img' hF h], intro z, split,
+    rintro ⟨x', hx', hz⟩, subst hx', exact hz,
+  intro hz, exact ⟨_, rfl, hz⟩,
 end
 
 lemma restrict_ran {F A : Set} : (F.restrict A).ran = F.img A :=
@@ -747,6 +837,15 @@ begin
   rw [←T3E_a, ←T3E_b] at h, rw [←T3E_a, T3I, ←T3E_a], exact dom_comp h,
 end
 
+lemma ran_comp_complex {f g : Set} (hf : f.one_to_one) : (f.comp g).ran = f.ran \ f.img (f.dom \ g.ran) :=
+begin
+  apply ext, simp only [mem_ran, pair_mem_comp, mem_diff, mem_img, mem_dom], intro y, split,
+    rintro ⟨z, x, hzx, hxy⟩, refine ⟨⟨_, hxy⟩, _⟩, rintro ⟨x', ⟨⟨y', hxy'⟩, he⟩, hx'y⟩,
+    apply he, rw one_to_one_iff at hf, specialize hf hxy hx'y, rw ←hf, exact ⟨_, hzx⟩,
+  rintro⟨⟨z, hzy⟩, hne⟩, apply classical.by_contradiction, intro hne', apply hne,
+  refine ⟨_, ⟨⟨_, hzy⟩, _⟩, hzy⟩, rintro ⟨x', hx'z⟩, apply hne', exact ⟨_, _, hx'z, hzy⟩,
+end
+
 lemma comp_into_fun {A B C f : Set} (hf : f.into_fun A B) {g : Set} (hg : g.into_fun B C) : (g.comp f).into_fun A C :=
 begin
   refine ⟨T3H_a hg.left hf.left, _, _⟩,
@@ -787,14 +886,6 @@ begin
   cases hx,
     exact hA _ hx,
   exact hB _ hx,
-end
-
-lemma prod_is_rel {A B : Set} : (A.prod B).is_rel :=
-begin
-  intros x hx,
-  simp only [mem_prod] at hx,
-  rcases hx with ⟨a, ha, b, hb, he⟩,
-  exact ⟨_, _, he⟩,
 end
 
 def id (A : Set) : Set := pair_sep (λ a b, a = b) A A
@@ -916,6 +1007,11 @@ begin
   exact exists_or_distrib,
 end
 
+lemma union_dom {F G : Set} : (F ∪ G).dom = F.dom ∪ G.dom :=
+begin
+  apply ext, simp only [mem_dom, mem_union, exists_or_distrib, forall_const, iff_self],
+end
+
 lemma union_fun_into_fun {F G D₁ D₂ R : Set} (hF : F.into_fun D₁ R) (hG : G.into_fun D₂ R) (hdisj : D₁ ∩ D₂ = ∅) : (F ∪ G).into_fun (D₁ ∪ D₂) R :=
 begin
   have onto : (F ∪ G).onto_fun (F.dom ∪ G.dom) (F.ran ∪ G.ran), apply union_fun hF.left hG.left, rw [hF.right.left, hG.right.left], exact hdisj,
@@ -998,6 +1094,17 @@ begin
   rw hy'.right, symmetry, exact hy.right,
 end
 
+lemma empty_fun : is_function ∅ :=
+begin
+  rw is_function_iff, refine ⟨empty_is_rel, λ x y y' hxy hxy', _⟩,
+  exfalso, exact mem_empty _ hxy,
+end
+
+lemma empty_oto : one_to_one ∅ :=
+begin
+  rw one_to_one_iff, intros y x x' hxy hxy', exfalso, exact mem_empty _ hxy,
+end
+
 lemma dom_prod_nonempty {A B : Set} (hb : ∃ x : Set, x ∈ B) : (A.prod B).dom = A :=
 begin
   apply ext, intro z,
@@ -1011,22 +1118,27 @@ begin
   rcases hz with ⟨t, hA, hB⟩, exact hB,
 end
 
+lemma one_to_one_of_has_left_inv {F A B : Set} (hf : F.into_fun A B) (he : ∃ G : Set, G.into_fun B A ∧ G.comp F = A.id) : F.one_to_one :=
+begin
+  rcases he with ⟨G, hif, hcid⟩,
+  apply one_to_one_ext hf.left,
+  intros x y hxd hyd he,
+  simp only [hf.right.left] at hxd hyd,
+  rw ←id_value hxd, rw ←id_value hyd, rw ←hcid,
+  rw T3H_c hif.left hf.left _,
+  rw T3H_c hif.left hf.left _,
+  rw he,
+  simp only [hcid, (id_onto).right.left, hyd],
+  simp only [hcid, (id_onto).right.left, hxd],
+end
+
 local attribute [instance] classical.prop_decidable
 
 lemma T3J_a {F A B : Set} (hf : F.into_fun A B) (hne : ∃ x, x ∈ A) : (∃ G : Set, G.into_fun B A ∧ G.comp F = A.id) ↔ F.one_to_one :=
 begin
   simp only [into_fun] at *,
   split,
-  { rintro ⟨G, hif, hcid⟩,
-    apply one_to_one_ext hf.left,
-    intros x y hxd hyd he,
-    simp only [hf.right.left] at hxd hyd,
-    rw ←id_value hxd, rw ←id_value hyd, rw ←hcid,
-    rw T3H_c hif.left hf.left _,
-    rw T3H_c hif.left hf.left _,
-    rw he,
-    simp only [hcid, (id_onto).right.left, hyd],
-    simp only [hcid, (id_onto).right.left, hxd], },
+  { intro he, exact one_to_one_of_has_left_inv hf he, },
   { rcases hne with ⟨x, hxm⟩,
     intro hoto,
     let F' := F.inv,
@@ -1200,9 +1312,8 @@ begin
     rw hf.right.left at hB, assumption, },
 end
 
--- set_option pp.universes true
-
-lemma choice_equiv : list.tfae [Axiom_of_choice_I.{u}, Axiom_of_choice_II.{u}, Axiom_of_choice_III.{u}, Axiom_of_choice_IV.{u}] :=
+-- first 4 parts of theorem 6M
+theorem choice_equiv : list.tfae [Axiom_of_choice_I.{u}, Axiom_of_choice_II.{u}, Axiom_of_choice_III.{u}, Axiom_of_choice_IV.{u}] :=
 begin
   tfae_have : 1 → 2,
   { dsimp only [Axiom_of_choice_I, Axiom_of_choice_II], rintros ax1 I H ⟨Hfun, Hdom, Hne⟩,
@@ -1317,7 +1428,7 @@ begin
   refine list.tfae_prf choice_equiv _ _ @ax_ch_3, finish, finish,
 end
 
-lemma T3J_b {F A B : Set} (hf : F.into_fun A B) (hne : ∃ x, x ∈ A) : (∃ H : Set, H.into_fun B A ∧ F.comp H = B.id) ↔ F.onto_fun A B :=
+lemma T3J_b {F A B : Set} (hf : F.into_fun A B) : (∃ H : Set, H.into_fun B A ∧ F.comp H = B.id) ↔ F.onto_fun A B :=
 begin
   rcases hf with ⟨hf, hd, hr⟩,
   split,

@@ -24,3 +24,6 @@ end
 lemma subst_right_of_and {α : Sort u} {p : Prop} {a b c : α} (h : p → b = c) : p ∧ a = b ↔ p ∧ a = c :=
 ⟨ assume h₂, ⟨h₂.left, (h h₂.left) ▸ h₂.right⟩,
   assume h₂, ⟨h₂.left, (h h₂.left).symm ▸ h₂.right⟩ ⟩
+
+lemma exists_unique_eq {α : Sort u} {β : Sort v} (f : α → β) : ∀ x : α, ∃! y : β, (λ (a : α) (b : β), b = f a) x y :=
+λ x, ⟨f x, rfl, λ y, assume hy, hy⟩

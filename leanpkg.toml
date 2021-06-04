@@ -1,8 +1,8 @@
 [package]
 name = "set_theory"
 version = "0.1"
-lean_version = "leanprover-community/lean:3.28.0"
+lean_version = "leanprover-community/lean:3.30.0"
 path = "src"
 
 [dependencies]
-mathlib = {git = "https://github.com/leanprover-community/mathlib", rev = "86b8f39faefc20432a9a3390bef54dc777c693fd"}
+mathlib = {git = "https://github.com/leanprover-community/mathlib", rev = "8078ecad87dfd3b6848983bbe9250689d17d39b5"}

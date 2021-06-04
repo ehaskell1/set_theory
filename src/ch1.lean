@@ -1,5 +1,4 @@
 import logic
-import logic.basic
 import set_theory.zfc
 
 namespace Set

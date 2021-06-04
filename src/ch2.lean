@@ -52,6 +52,12 @@ theorem inhabited_of_ne_empty {A : Set} (hA : A ≠ ∅) : A.inhab :=
 begin
   apply classical.by_contradiction, intro hni, apply hA, rw eq_empty, intros z hz, apply hni, exact ⟨_, hz⟩,
 end
+
+lemma vacuous {p : Set → Prop} : ∀ x : Set, x ∈ (∅ : Set) → p x :=
+begin
+  intros x hx, exfalso, exact mem_empty _ hx,
+end
+
 theorem exists_unique_of_exists {p : Set → Prop} (h : ∃ x : Set, ∀ z, z ∈ x ↔ p z) : ∃! x : Set, ∀ z, z ∈ x ↔ p z :=
 begin
   cases h with x h,
@@ -116,6 +122,13 @@ lemma eq_iff_subset_and_subset {A B : Set} : A = B ↔ A ⊆ B ∧ B ⊆ A :=
 begin
   split, intro he, rw he, exact ⟨subset_self, subset_self⟩,
   rintro ⟨ha, hb⟩, apply ext, intro x, rw iff_iff_implies_and_implies, rw subset_def at *, exact ⟨@ha x, @hb x⟩,
+end
+
+lemma diff_ne_empty_of_ne {B A : Set} (hBA : B ⊆ A) (hne : B ≠ A) : (A \ B) ≠ ∅ :=
+begin
+  intro he, apply hne, rw eq_iff_subset_and_subset, refine ⟨hBA, _⟩,
+  intros x hx, apply classical.by_contradiction, intro hxB,
+  apply mem_empty x, rw ←he, rw mem_diff, exact ⟨hx, hxB⟩,
 end
 
 lemma subset_trans {A B C : Set} (hA : A ⊆ B) (hB : B ⊆ C) : A ⊆ C := (λ x hx, hB (hA hx))
@@ -188,6 +201,9 @@ lemma subset_union_left {A B : Set} : A ⊆ A ∪ B := subset_union_of_subset su
 
 lemma subset_union_right {A B : Set} : B ⊆ A ∪ B := begin rw union_comm, exact subset_union_left, end
 
+lemma subset_union_of_subset_left {A B C : Set} (hAB : A ⊆ B) : A ⊆ B ∪ C :=
+begin intros x hx, rw mem_union, exact or.inl (hAB hx), end
+
 lemma union_subset_of_subset_of_subset {A B C : Set} (hA : A ⊆ C) (hB : B ⊆ C) : (A ∪ B) ⊆ C :=
 begin
   intro x, rw mem_union, rintro (hx|hx),
@@ -198,6 +214,18 @@ end
 lemma union_eq_union_diff {A B : Set} : A ∪ B = A ∪ (B \ A) :=
 begin
   apply ext, simp only [mem_union, mem_diff, or_and_distrib_left, classical.em, forall_const, and_true, iff_self],
+end
+
+lemma union_eq_left_of_subset {A B : Set} (hBA : B ⊆ A) : A ∪ B = A :=
+begin
+  rw eq_iff_subset_and_subset,
+  exact ⟨union_subset_of_subset_of_subset subset_self hBA, subset_union_left⟩,
+end
+
+lemma union_diff_eq_self_of_subset {A B : Set} (hAB : A ⊆ B) : A ∪ (B \ A) = B :=
+begin
+  rw [←union_eq_union_diff, eq_iff_subset_and_subset],
+  exact ⟨union_subset_of_subset_of_subset hAB subset_self, subset_union_right⟩,
 end
 
 lemma subset_diff {A B : Set} : A \ B ⊆ A :=
@@ -225,6 +253,45 @@ lemma Union_subset_of_subset_powerset {X Y : Set} (h : X ⊆ Y.powerset) : X.Uni
 begin
   intros x hx, rw mem_Union at hx, rcases hx with ⟨Z, hZX, hxZ⟩, specialize h hZX, rw mem_powerset at h,
   exact h hxZ,
+end
+
+lemma diff_diff_eq_self_of_subset {A B : Set} (hBA : B ⊆ A) : A \ (A \ B) = B :=
+begin
+  apply ext, intro x, simp only [mem_diff], split,
+    rintro ⟨hA, h⟩, apply classical.by_contradiction, intro hB, exact h ⟨hA, hB⟩,
+  intro hB, refine ⟨hBA hB, _⟩, rintro ⟨hA, hB'⟩, exact hB' hB,
+end
+
+lemma empty_subset {A : Set} : ∅ ⊆ A :=
+λ x : Set, assume hx : x ∈ ∅, show x ∈ A, from false.elim (mem_empty x hx)
+
+lemma prod_subset_of_subset_of_subset {A B : Set} (hAB : A ⊆ B) {C D : Set} (hCD : C ⊆ D) : A.prod C ⊆ B.prod D :=
+begin
+  intros z hz, simp only [mem_prod, exists_prop] at *,
+  rcases hz with ⟨a, ha, c, hc, he⟩,
+  exact ⟨_, hAB ha, _, hCD hc, he⟩,
+end
+
+lemma inter_eq_of_subset {A B : Set} (hAB : A ⊆ B) : B ∩ A = A :=
+begin
+  apply ext, intro x, rw mem_inter, split,
+    rintro ⟨hB, hA⟩, exact hA,
+  intro hA, exact ⟨hAB hA, hA⟩,
+end
+
+lemma inter_subset_right {A B : Set} : A ∩ B ⊆ B :=
+begin
+  intros x xAB, rw mem_inter at xAB, exact xAB.right,
+end
+
+lemma inter_subset_left {A B : Set} : A ∩ B ⊆ A :=
+begin
+  intros x xAB, rw mem_inter at xAB, exact xAB.left,
+end
+
+lemma diff_sub_diff_of_sub {A B : Set} (AB : A ⊆ B) {C : Set} : C \ B ⊆ C \ A :=
+begin
+  intros x xCB, rw mem_diff at *, exact ⟨xCB.left, assume xA, xCB.right (AB xA)⟩,
 end
 
 end Set
