@@ -28,7 +28,7 @@ end
 lemma part_order_of_lin_order {A R : Set} (hR : A.lin_order R) : R.part_order :=
 ⟨λ z, assume hz, is_pair_of_mem_prod (hR.rel hz), hR.trans, hR.irrefl⟩
 
-structure rel_struct :=
+structure struct :=
 (fld rel : Set)
 (is_rel : rel ⊆ fld.prod fld)
 
@@ -225,14 +225,14 @@ begin
   subst he, exact hlin.irrefl hzx,
 end
 
-lemma mem_fld_of_pair_mem_rel_struct {R : rel_struct} {x y : Set} (hxy : x.pair y ∈ R.rel) : x ∈ R.fld ∧ y ∈ R.fld :=
+lemma mem_fld_of_pair_mem_struct {R : struct} {x y : Set} (hxy : x.pair y ∈ R.rel) : x ∈ R.fld ∧ y ∈ R.fld :=
 begin
   replace hxy := R.is_rel hxy, rw pair_mem_prod at hxy, exact hxy,
 end
 
-lemma seg_sub_fld {R : rel_struct} {t : Set} (tA : t ∈ R.fld) : R.rel.seg t ⊆ R.fld :=
+lemma seg_sub_fld {R : struct} {t : Set} (tA : t ∈ R.fld) : R.rel.seg t ⊆ R.fld :=
 begin
-  intros x xt, rw mem_seg at xt, exact (mem_fld_of_pair_mem_rel_struct xt).left,
+  intros x xt, rw mem_seg at xt, exact (mem_fld_of_pair_mem_struct xt).left,
 end
 
 local attribute [instance] classical.prop_decidable
@@ -438,13 +438,13 @@ theorem transfinite_rec' {A R : Set.{u}} (hwell : A.well_order R) (f : Set.{u} �
 : ∃! F : Set, F.is_function ∧ F.dom = A ∧ ∀ ⦃t : Set⦄, t ∈ A → (F.fun_value t) = f (F.restrict (R.seg t)) :=
 transfinite_rec hwell (exists_unique_eq f)
 
-noncomputable def eps_img_fun (R : rel_struct) : Set :=
+noncomputable def eps_img_fun (R : struct) : Set :=
 if case : R.fld.well_order R.rel then
   classical.some (exists_of_exists_unique (@transfinite_rec (λ f y, y = f.ran) _ _ case (exists_unique_eq ran)))
 else
   ∅
 
-lemma eps_img_fun_spec {R : rel_struct} (well : R.fld.well_order R.rel) :
+lemma eps_img_fun_spec {R : struct} (well : R.fld.well_order R.rel) :
   (eps_img_fun R).is_function ∧ (eps_img_fun R).dom = R.fld
   ∧ ∀ ⦃t : Set⦄, t ∈ R.fld → (eps_img_fun R).fun_value t = ((eps_img_fun R).restrict (R.rel.seg t)).ran :=
 begin
@@ -452,46 +452,46 @@ begin
   exact classical.some_spec (exists_of_exists_unique (@transfinite_rec (λ f y, y = f.ran) _ _ well (exists_unique_eq ran))),
 end
 
-lemma eps_img_fun_value_img {R : rel_struct} (well : R.fld.well_order R.rel) {t : Set} (ht : t ∈ R.fld) :
+lemma eps_img_fun_value_img {R : struct} (well : R.fld.well_order R.rel) {t : Set} (ht : t ∈ R.fld) :
   (eps_img_fun R).fun_value t = (eps_img_fun R).img (R.rel.seg t) :=
 begin
   obtain ⟨-, -, h⟩ := eps_img_fun_spec well,
   rw [img, h ht],
 end
 
-lemma mem_eps_img_fun {R : rel_struct} (well : R.fld.well_order R.rel) {t : Set} (ht : t ∈ R.fld) {y : Set} :
+lemma mem_eps_img_fun {R : struct} (well : R.fld.well_order R.rel) {t : Set} (ht : t ∈ R.fld) {y : Set} :
   y ∈ (eps_img_fun R).fun_value t ↔ ∃ x : Set, x.pair t ∈ R.rel ∧ y = (eps_img_fun R).fun_value x :=
 begin
   obtain ⟨f, dom, -⟩ := eps_img_fun_spec well,
   have sub : R.rel.seg t ⊆ (eps_img_fun R).dom, intros x hx, rw mem_seg at hx,
-    replace hx := (mem_fld_of_pair_mem_rel_struct hx).left, rw dom, exact hx,
+    replace hx := (mem_fld_of_pair_mem_struct hx).left, rw dom, exact hx,
   simp only [eps_img_fun_value_img well ht, mem_img' f sub, mem_seg],
 end
 
-lemma fun_value_mem_eps_img_fun {R : rel_struct} (well : R.fld.well_order R.rel) {t : Set} (ht : t ∈ R.fld) {x : Set} (hx : x.pair t ∈ R.rel) :
+lemma fun_value_mem_eps_img_fun {R : struct} (well : R.fld.well_order R.rel) {t : Set} (ht : t ∈ R.fld) {x : Set} (hx : x.pair t ∈ R.rel) :
   (eps_img_fun R).fun_value x ∈ (eps_img_fun R).fun_value t :=
 begin
   rw mem_eps_img_fun well ht, exact ⟨_, hx, rfl⟩,
 end
 
-noncomputable def eps_img (R : rel_struct) : Set := (eps_img_fun R).ran
+noncomputable def eps_img (R : struct) : Set := (eps_img_fun R).ran
 
 @[simp]
-lemma mem_eps_img {R : rel_struct} (well : R.fld.well_order R.rel) {y : Set} :
+lemma mem_eps_img {R : struct} (well : R.fld.well_order R.rel) {y : Set} :
   y ∈ eps_img R ↔ ∃ x : Set, x ∈ R.fld ∧ y = (eps_img_fun R).fun_value x :=
 begin
   obtain ⟨f, dom, -⟩ := eps_img_fun_spec well,
   rw [eps_img, mem_ran_iff f, dom],
 end
 
-lemma fun_value_mem_eps_img {R : rel_struct} (well : R.fld.well_order R.rel) {x : Set} (hx : x ∈ R.fld) :
+lemma fun_value_mem_eps_img {R : struct} (well : R.fld.well_order R.rel) {x : Set} (hx : x ∈ R.fld) :
   (eps_img_fun R).fun_value x ∈ eps_img R :=
 begin
   rw mem_eps_img well, exact ⟨_, hx, rfl⟩,
 end
 
 -- Theorem 7D part a
-theorem eps_img_fun_irrefl {R : rel_struct} (well : R.fld.well_order R.rel) {t : Set} (tA : t ∈ R.fld) :
+theorem eps_img_fun_irrefl {R : struct} (well : R.fld.well_order R.rel) {t : Set} (tA : t ∈ R.fld) :
   (eps_img_fun R).fun_value t ∉ (eps_img_fun R).fun_value t :=
 begin
   let S := {x ∈ R.fld | (eps_img_fun R).fun_value x ∈ (eps_img_fun R).fun_value x},
@@ -500,19 +500,19 @@ begin
   obtain ⟨m, mS, le⟩ := well.well SE sep_subset,
   rw [mem_sep] at mS, obtain ⟨mA, fmm⟩ := mS,
   have fmm' := fmm, rw mem_eps_img_fun well mA at fmm', obtain ⟨x, xm, fmx⟩ := fmm',
-  have xA := (mem_fld_of_pair_mem_rel_struct xm).left,
+  have xA := (mem_fld_of_pair_mem_struct xm).left,
   apply le, use x, rw mem_sep, rw ←fmx, exact ⟨⟨xA, fmm⟩, xm⟩,
 end
 
 -- Theorem 7D part b part 1
-theorem eps_img_fun_onto {R : rel_struct} (well : R.fld.well_order R.rel) : (eps_img_fun R).onto_fun R.fld (eps_img R) :=
+theorem eps_img_fun_onto {R : struct} (well : R.fld.well_order R.rel) : (eps_img_fun R).onto_fun R.fld (eps_img R) :=
 begin
   obtain ⟨f, dom, -⟩ := eps_img_fun_spec well,
   rw [eps_img, ←dom], exact ⟨f, rfl, rfl⟩,
 end
 
 -- Theorem 7D part b part 2
-theorem eps_img_fun_oto {R : rel_struct} (well : R.fld.well_order R.rel) : (eps_img_fun R).one_to_one :=
+theorem eps_img_fun_oto {R : struct} (well : R.fld.well_order R.rel) : (eps_img_fun R).one_to_one :=
 begin
   obtain ⟨f, dom, -⟩ := eps_img_fun_spec well,
   apply one_to_one_of f, rw dom, intros s sA t tA st fst,
@@ -524,14 +524,14 @@ begin
 end
 
 -- Theorem 7D part c
-theorem fun_value_mem_eps_img_fun_iff {R : rel_struct} (well : R.fld.well_order R.rel) {s : Set} (sA : s ∈ R.fld) {t : Set} (tA : t ∈ R.fld) :
+theorem fun_value_mem_eps_img_fun_iff {R : struct} (well : R.fld.well_order R.rel) {s : Set} (sA : s ∈ R.fld) {t : Set} (tA : t ∈ R.fld) :
   (eps_img_fun R).fun_value s ∈ (eps_img_fun R).fun_value t ↔ s.pair t ∈ R.rel :=
 begin
   obtain ⟨f, dom, _⟩ := eps_img_fun_spec well,
   split,
     intro fst, rw mem_eps_img_fun well tA at fst,
     obtain ⟨x, xt, fsx⟩ := fst,
-    have xA := (mem_fld_of_pair_mem_rel_struct xt).left,
+    have xA := (mem_fld_of_pair_mem_struct xt).left,
     rw ←dom at sA xA,
     rw from_one_to_one f (eps_img_fun_oto well) xA sA fsx.symm at xt,
     exact xt,
@@ -539,7 +539,7 @@ begin
 end
 
 -- Theorem 7D part d
-theorem eps_img_transitive {R : rel_struct} (well : R.fld.well_order R.rel) :
+theorem eps_img_transitive {R : struct} (well : R.fld.well_order R.rel) :
   (eps_img R).transitive_set :=
 begin
   intros y yf, rw mem_Union at yf, obtain ⟨Y, Yf, yY⟩ := yf,
@@ -552,14 +552,14 @@ begin
   exact fun_value_mem_eps_img well xA,
 end
 
-structure isomorphism (R S : rel_struct) (f : Set) : Prop :=
+structure isomorphism (R S : struct) (f : Set) : Prop :=
 (corr : R.fld.correspondence S.fld f)
 (iso : ∀ ⦃x y : Set⦄, x ∈ R.fld → y ∈ R.fld → (x.pair y ∈ R.rel ↔ (f.fun_value x).pair (f.fun_value y) ∈ S.rel))
 
-def isomorphic (R S : rel_struct) : Prop := ∃ f : Set, f.isomorphism R S
+def isomorphic (R S : struct) : Prop := ∃ f : Set, f.isomorphism R S
 
 -- Theorem 7E part 1
-theorem iso_refl {R : rel_struct} : isomorphic R R :=
+theorem iso_refl {R : struct} : isomorphic R R :=
 begin
   use R.fld.id, split,
     exact ⟨id_onto, id_oto⟩,
@@ -568,7 +568,7 @@ begin
 end
 
 -- Theorem 7E part 2
-theorem iso_symm {R S : rel_struct} (h : isomorphic R S) : isomorphic S R :=
+theorem iso_symm {R S : struct} (h : isomorphic R S) : isomorphic S R :=
 begin
   rcases h with ⟨f, corr, iso⟩,
   have hif : f.inv.is_function, rw T3F_a, exact corr.oto,
@@ -585,7 +585,7 @@ begin
 end
 
 -- Theorem 7E part 3
-theorem iso_trans {R S : rel_struct} (hRS : isomorphic R S) {T : rel_struct} (hST : isomorphic S T) : isomorphic R T :=
+theorem iso_trans {R S : struct} (hRS : isomorphic R S) {T : struct} (hST : isomorphic S T) : isomorphic R T :=
 begin
   rcases hRS with ⟨f, fcorr, fiso⟩,
   rcases hST with ⟨g, gcorr, giso⟩,
@@ -657,18 +657,18 @@ begin
   refine ⟨f.fun_value x, fun_value_mem_img into.left SA xS, xm.right.right⟩,
 end
 
-lemma fun_order_eq {R S : rel_struct} {f : Set} (fiso : f.isomorphism S R) : S.fld.fun_order R.rel f = S.rel :=
+lemma fun_order_eq {R S : struct} {f : Set} (fiso : f.isomorphism S R) : S.fld.fun_order R.rel f = S.rel :=
 begin
   apply rel_ext (pair_sep_is_rel) (sub_rel_is_rel prod_is_rel S.is_rel),
   intros x y, rw pair_mem_pair_sep, split,
     rintro ⟨hx, hy, fxy⟩, rw fiso.iso hx hy, exact fxy,
   intro xy,
-  obtain ⟨hx, hy⟩ := mem_fld_of_pair_mem_rel_struct xy,
+  obtain ⟨hx, hy⟩ := mem_fld_of_pair_mem_struct xy,
   rw ←fiso.iso hx hy, exact ⟨hx, hy, xy⟩,
 end
 
 -- Theorem 7G part a
-theorem part_order_iso {R S : rel_struct} (RS : isomorphic R S) (part : R.rel.part_order) : S.rel.part_order :=
+theorem part_order_iso {R S : struct} (RS : isomorphic R S) (part : R.rel.part_order) : S.rel.part_order :=
 begin
   replace RS := iso_symm RS,
   cases RS with f fiso,
@@ -677,7 +677,7 @@ begin
 end
 
 -- Theorem 7G part b
-theorem lin_order_iso {R S : rel_struct} (RS : isomorphic R S) (lin : R.fld.lin_order R.rel) : S.fld.lin_order S.rel :=
+theorem lin_order_iso {R S : struct} (RS : isomorphic R S) (lin : R.fld.lin_order R.rel) : S.fld.lin_order S.rel :=
 begin
   replace RS := iso_symm RS,
   cases RS with f fiso,
@@ -686,7 +686,7 @@ begin
 end
 
 -- Theorem 7G part c
-theorem well_order_iso {R S : rel_struct} (RS : isomorphic R S) (well : R.fld.well_order R.rel) : S.fld.well_order S.rel :=
+theorem well_order_iso {R S : struct} (RS : isomorphic R S) (well : R.fld.well_order R.rel) : S.fld.well_order S.rel :=
 begin
   replace RS := iso_symm RS,
   cases RS with f fiso,
@@ -695,19 +695,19 @@ begin
 end
 
 def eps_order (A : Set) : Set := pair_sep (λ x y, x ∈ y) A A
-def eps_order_rel_struct (A : Set) : rel_struct := ⟨A, A.eps_order, pair_sep_sub_prod⟩
+def eps_order_struct (A : Set) : struct := ⟨A, A.eps_order, pair_sep_sub_prod⟩
 
 @[simp]
-lemma eps_order_rel_struct_fld {A : Set} : A.eps_order_rel_struct.fld = A := rfl
+lemma eps_order_struct_fld {A : Set} : A.eps_order_struct.fld = A := rfl
 @[simp]
-lemma eps_order_rel_struct_rel {A : Set} : A.eps_order_rel_struct.rel = A.eps_order := rfl
+lemma eps_order_struct_rel {A : Set} : A.eps_order_struct.rel = A.eps_order := rfl
 
-lemma pair_mem_eps_order {A x y : Set} (xA : x ∈ A) (yA : y ∈ A) : x.pair y ∈ A.eps_order_rel_struct.rel ↔ x ∈ y :=
+lemma pair_mem_eps_order {A x y : Set} (xA : x ∈ A) (yA : y ∈ A) : x.pair y ∈ A.eps_order_struct.rel ↔ x ∈ y :=
 begin
-  simp only [eps_order_rel_struct_rel, eps_order, xA, yA, true_and, pair_mem_pair_sep],
+  simp only [eps_order_struct_rel, eps_order, xA, yA, true_and, pair_mem_pair_sep],
 end
 
-lemma eps_img_iso {R : rel_struct} (well : R.fld.well_order R.rel) : (eps_img_fun R).isomorphism R (eps_img R).eps_order_rel_struct :=
+lemma eps_img_iso {R : struct} (well : R.fld.well_order R.rel) : (eps_img_fun R).isomorphism R (eps_img R).eps_order_struct :=
 begin
   refine ⟨⟨eps_img_fun_onto well, eps_img_fun_oto well⟩, _⟩,
   intros x y xA yA,
@@ -716,15 +716,15 @@ begin
   rw [pair_mem_eps_order fx fy, fun_value_mem_eps_img_fun_iff well xA yA],
 end
 
-lemma eps_img_isomorphic {R : rel_struct} (well : R.fld.well_order R.rel) : isomorphic R (eps_img R).eps_order_rel_struct :=
+lemma eps_img_isomorphic {R : struct} (well : R.fld.well_order R.rel) : isomorphic R (eps_img R).eps_order_struct :=
 ⟨_, eps_img_iso well⟩
 
 -- Corollary 7H
-lemma eps_img_well_order {R : rel_struct} (well : R.fld.well_order R.rel) : (eps_img R).well_order (eps_img R).eps_order :=
+lemma eps_img_well_order {R : struct} (well : R.fld.well_order R.rel) : (eps_img R).well_order (eps_img R).eps_order :=
 well_order_iso (eps_img_isomorphic well) well
 
 -- Exercise 13
-theorem iso_unique {R S : rel_struct} (Rwell : R.fld.well_order R.rel) (Swell : S.fld.well_order S.rel) (iso : isomorphic R S) :
+theorem iso_unique {R S : struct} (Rwell : R.fld.well_order R.rel) (Swell : S.fld.well_order S.rel) (iso : isomorphic R S) :
   ∃! f : Set, f.isomorphism R S :=
 begin
   apply exists_unique_of_exists_of_unique iso, intros f g fiso giso,
@@ -758,7 +758,7 @@ begin
 end
 
 -- Theorem 7I
-theorem iso_iff_eps_img_eq {R S : rel_struct} (Rwell : R.fld.well_order R.rel) (Swell : S.fld.well_order S.rel) :
+theorem iso_iff_eps_img_eq {R S : struct} (Rwell : R.fld.well_order R.rel) (Swell : S.fld.well_order S.rel) :
   isomorphic R S ↔ eps_img R = eps_img S :=
 begin
   split,
@@ -779,10 +779,10 @@ begin
     have fs : f.fun_value s ∈ S.fld, rw ←fonto.right.right, apply fun_value_def'' fonto.left, rw fonto.right.left, exact sA,
     rw [mem_eps_img_fun Rwell sA, mem_eps_img_fun Swell fs], split,
       rintro ⟨x, xs, zfx⟩, subst zfx, use f.fun_value x, split,
-        rw ←fiso (mem_fld_of_pair_mem_rel_struct xs).left sA, exact xs,
+        rw ←fiso (mem_fld_of_pair_mem_struct xs).left sA, exact xs,
       rw ←mem_seg at xs, replace xs := sub xs, rw mem_sep at xs, exact xs.right,
     rintro ⟨y, yfs, zfy⟩, subst zfy,
-    have yr : y ∈ f.ran, rw fonto.right.right, exact (mem_fld_of_pair_mem_rel_struct yfs).left,
+    have yr : y ∈ f.ran, rw fonto.right.right, exact (mem_fld_of_pair_mem_struct yfs).left,
     rw mem_ran_iff fonto.left at yr, obtain ⟨x, xA, yfs⟩ := yr, subst yfs, use x,
     rw fonto.right.left at xA, rw ←fiso xA sA at yfs, split,
       exact yfs,
@@ -790,13 +790,13 @@ begin
   intro he, apply iso_trans (eps_img_isomorphic Rwell), rw he, exact iso_symm (eps_img_isomorphic Swell),
 end
 
-def is_ordinal (S : Set) : Prop := ∃ R : rel_struct, R.fld.well_order R.rel ∧ S = eps_img R
-def rel_struct_restrict (R : rel_struct) (S : Set) : rel_struct := ⟨S, R.rel ∩ (S.prod S), inter_subset_right⟩
+def is_ordinal (S : Set) : Prop := ∃ R : struct, R.fld.well_order R.rel ∧ S = eps_img R
+def struct_restrict (R : struct) (S : Set) : struct := ⟨S, R.rel ∩ (S.prod S), inter_subset_right⟩
 
 @[simp]
-lemma rel_struct_restrict_fld {R : rel_struct} {S : Set} : (S.rel_struct_restrict R).fld = S := rfl
+lemma struct_restrict_fld {R : struct} {S : Set} : (S.struct_restrict R).fld = S := rfl
 @[simp]
-lemma rel_struct_restrict_rel {R : rel_struct} {S : Set} : (S.rel_struct_restrict R).rel = R.rel ∩ (S.prod S) := rfl
+lemma struct_restrict_rel {R : struct} {S : Set} : (S.struct_restrict R).rel = R.rel ∩ (S.prod S) := rfl
 
 def part_order_on (A R : Set) : Prop := R.part_order ∧ R ⊆ A.prod A
 
@@ -806,8 +806,8 @@ lemma part_to_lin {A R : Set} (part : A.part_order_on R) (conn : ∀ ⦃x y : Se
   A.lin_order R := ⟨part.right, part.left.trans, part.left.irrefl, conn⟩
 
 -- Theorem 7J part a
-theorem part_order_rel_struct_restrict {R : rel_struct} (Rpart : R.fld.part_order_on R.rel) {S : Set} (SR : S ⊆ R.fld) :
-  (S.rel_struct_restrict R).fld.part_order_on (S.rel_struct_restrict R).rel :=
+theorem part_order_struct_restrict {R : struct} (Rpart : R.fld.part_order_on R.rel) {S : Set} (SR : S ⊆ R.fld) :
+  (S.struct_restrict R).fld.part_order_on (S.struct_restrict R).rel :=
 begin
   simp, refine ⟨⟨inter_rel_is_rel Rpart.left.rel, _, _⟩, inter_subset_right⟩,
   { intros x y z xy yz, rw [mem_inter, pair_mem_prod] at *,
@@ -816,30 +816,30 @@ begin
 end 
 
 -- Theorem 7J part b
-theorem lin_order_rel_struct_restrict {R : rel_struct} (Rlin : R.fld.lin_order R.rel) {S : Set} (SR : S ⊆ R.fld) :
-  (S.rel_struct_restrict R).fld.lin_order (S.rel_struct_restrict R).rel :=
+theorem lin_order_struct_restrict {R : struct} (Rlin : R.fld.lin_order R.rel) {S : Set} (SR : S ⊆ R.fld) :
+  (S.struct_restrict R).fld.lin_order (S.struct_restrict R).rel :=
 begin
-  apply part_to_lin (part_order_rel_struct_restrict (part_from_lin Rlin) SR), simp,
+  apply part_to_lin (part_order_struct_restrict (part_from_lin Rlin) SR), simp,
   intros x y xS yS xy, cases Rlin.conn (SR xS) (SR yS) xy with xly ylx,
     exact or.inl ⟨xly, xS, yS⟩,
   exact or.inr ⟨ylx, yS, xS⟩,
 end
 
 -- Theorem 7J part c
-theorem well_order_rel_struct_restrict {R : rel_struct} (Rwell : R.fld.well_order R.rel) {S : Set} (SR : S ⊆ R.fld) :
-  (S.rel_struct_restrict R).fld.well_order (S.rel_struct_restrict R).rel :=
+theorem well_order_struct_restrict {R : struct} (Rwell : R.fld.well_order R.rel) {S : Set} (SR : S ⊆ R.fld) :
+  (S.struct_restrict R).fld.well_order (S.struct_restrict R).rel :=
 begin
-  refine ⟨lin_order_rel_struct_restrict Rwell.lin SR, _⟩, simp,
+  refine ⟨lin_order_struct_restrict Rwell.lin SR, _⟩, simp,
   intros X XE XS,
   obtain ⟨m, mX, le⟩ := Rwell.well XE (subset_trans XS SR),
   refine ⟨_, mX, _⟩, rintro ⟨x, xX, xm⟩, rw mem_inter at xm, exact le ⟨_, xX, xm.left⟩,
 end
 
 -- Theorem 7K
-theorem T7K {R : rel_struct.{u}} (Rwell : R.fld.well_order R.rel) {S : rel_struct.{u}} (Swell : S.fld.well_order S.rel) :
+theorem T7K {R : struct.{u}} (Rwell : R.fld.well_order R.rel) {S : struct.{u}} (Swell : S.fld.well_order S.rel) :
   isomorphic R S
-  ∨ (∃ b : Set, b ∈ S.fld ∧ isomorphic R ((S.rel.seg b).rel_struct_restrict S))
-  ∨ (∃ a : Set, a ∈ R.fld ∧ isomorphic ((R.rel.seg a).rel_struct_restrict R) S) :=
+  ∨ (∃ b : Set, b ∈ S.fld ∧ isomorphic R ((S.rel.seg b).struct_restrict S))
+  ∨ (∃ a : Set, a ∈ R.fld ∧ isomorphic ((R.rel.seg a).struct_restrict R) S) :=
 begin
   let e : Set := classical.some (univ_not_set' (R.fld ∪ S.fld)),
   have eRS : e ∉ R.fld ∪ S.fld := classical.some_spec (univ_not_set' (R.fld ∪ S.fld)),
@@ -870,17 +870,17 @@ begin
     right, exact gf case,
   have seg_sub_dom : ∀ {y : Set}, y ∈ R.fld → R.rel.seg y ⊆ F.dom, intros y yA, rw Fdom, exact seg_sub_fld yA,
   have seg_sub_dom' : ∀ {x y : Set}, x.pair y ∈ R.rel → R.rel.seg y ⊆ F.dom, intros x y xy,
-    exact seg_sub_dom (mem_fld_of_pair_mem_rel_struct xy).right,
+    exact seg_sub_dom (mem_fld_of_pair_mem_struct xy).right,
   have sub_of_le : ∀ {x y : Set}, R.rel.lin_le x y → S.fld \ F.img (R.rel.seg y) ⊆ S.fld \ F.img (R.rel.seg x),
     intros x y xy, cases xy,
-      obtain ⟨xA, yA⟩ := mem_fld_of_pair_mem_rel_struct xy,
+      obtain ⟨xA, yA⟩ := mem_fld_of_pair_mem_struct xy,
       apply diff_sub_diff_of_sub, intros Z hZ,
       rw mem_img' Ffun (seg_sub_dom xA) at hZ, obtain ⟨z, zx, hZ⟩ := hZ, subst hZ,
       apply fun_value_mem_img Ffun (seg_sub_dom yA), exact (seg_subset_seg Rwell.lin xy) zx,
     subst xy, exact subset_self,
   have Fle_of_le : ∀ {x y : Set}, R.rel.lin_le x y → F.fun_value x ≠ e → F.fun_value y ≠ e → S.rel.lin_le (F.fun_value x) (F.fun_value y),
     intros x y xy Fxne Fyne, cases xy with xly xey,
-      obtain ⟨xA, yA⟩ := mem_fld_of_pair_mem_rel_struct xly,
+      obtain ⟨xA, yA⟩ := mem_fld_of_pair_mem_struct xly,
       have sub := sub_of_le (or.inl xly),
       have ex : ∃ m, m ∈ (S.fld \ F.img (R.rel.seg x)) ∧ (S.fld \ F.img (R.rel.seg x)).is_least S.rel m,
         apply classical.by_contradiction, intro nem, rw Fval xA at Fxne, exact Fxne (gf nem),
@@ -913,7 +913,7 @@ begin
     have xny : x ≠ y, intro xey, subst xey, exact Rwell.lin.irrefl xy,
     cases Fle_of_le (or.inl xy) Fxe Fye with lt eq,
       exact lt,
-    have xA := (mem_fld_of_pair_mem_rel_struct xy).left, have yA := (mem_fld_of_pair_mem_rel_struct xy).right,
+    have xA := (mem_fld_of_pair_mem_struct xy).left, have yA := (mem_fld_of_pair_mem_struct xy).right,
     exfalso, exact Fne_of_ne xA yA xny Fxe Fye eq,
   have lt_of_Flt : ∀ {x y : Set}, x ∈ R.fld → y ∈ R.fld → (F.fun_value x).pair (F.fun_value y) ∈ S.rel
     → F.fun_value x ≠ e → F.fun_value y ≠ e → x.pair y ∈ R.rel,
@@ -940,7 +940,7 @@ begin
     have Fran : F'.ran = S.fld, rw eq_iff_subset_and_subset, split,
         intros y yF, simp only [restrict_ran, mem_img' Ffun (seg_sub_dom aA), mem_seg] at yF,
         obtain ⟨x, xa, yFx⟩ := yF, subst yFx,
-        have xA : x ∈ R.fld := (mem_fld_of_pair_mem_rel_struct xa).left,
+        have xA : x ∈ R.fld := (mem_fld_of_pair_mem_struct xa).left,
         have gF : (F.restrict (R.rel.seg a)).fun_value x ∈ S.fld ∪ {e}, apply Fran,
           rw ←mem_seg at xa, rw restrict_fun_value Ffun (seg_sub_dom aA) xa,
           rw ←Fdom at xA, exact fun_value_def'' Ffun xA,
@@ -951,20 +951,20 @@ begin
       intros y yB, apply classical.by_contradiction, intro yF, apply mem_empty y,
       rw ←ge Fa, rw mem_diff, exact ⟨yB, yF⟩,
     have fne : ∀ {x : Set}, x.pair a ∈ R.rel → F.fun_value x ≠ e, intros x xa Fxe,
-      apply le, refine ⟨_, _, xa⟩, rw mem_sep, exact ⟨(mem_fld_of_pair_mem_rel_struct xa).left, Fxe⟩,
+      apply le, refine ⟨_, _, xa⟩, rw mem_sep, exact ⟨(mem_fld_of_pair_mem_struct xa).left, Fxe⟩,
     have Foto : F'.one_to_one, apply one_to_one_of (restrict_is_function Ffun), intros x xa y ya xy,
       rw restrict_dom (seg_sub_dom aA) at xa ya,
       rw [restrict_fun_value Ffun (seg_sub_dom aA) xa, restrict_fun_value Ffun (seg_sub_dom aA) ya],
       rw mem_seg at xa ya,
-      have xA := (mem_fld_of_pair_mem_rel_struct xa).left, have yA := (mem_fld_of_pair_mem_rel_struct ya).left,
+      have xA := (mem_fld_of_pair_mem_struct xa).left, have yA := (mem_fld_of_pair_mem_struct ya).left,
       exact Fne_of_ne xA yA xy (fne xa) (fne ya),
     right, right, refine ⟨_, aA, F', ⟨⟨⟨restrict_is_function Ffun, restrict_dom (seg_sub_dom aA), Fran⟩, Foto⟩, _⟩⟩,
-    intros x y xa ya, rw rel_struct_restrict_fld at xa ya,
-    simp only [rel_struct_restrict_rel, mem_inter, pair_mem_prod],
+    intros x y xa ya, rw struct_restrict_fld at xa ya,
+    simp only [struct_restrict_rel, mem_inter, pair_mem_prod],
     rw [restrict_fun_value Ffun (seg_sub_dom aA) xa, restrict_fun_value Ffun (seg_sub_dom aA) ya],
     rw mem_seg at xa ya,
-    have xA : x ∈ R.fld := (mem_fld_of_pair_mem_rel_struct xa).left,
-    have yA : y ∈ R.fld := (mem_fld_of_pair_mem_rel_struct ya).left,
+    have xA : x ∈ R.fld := (mem_fld_of_pair_mem_struct xa).left,
+    have yA : y ∈ R.fld := (mem_fld_of_pair_mem_struct ya).left,
     split,
       rintro ⟨xy, -, -⟩, exact Flt_of_lt xy (fne xa) (fne ya),
     intro Fxy, simp only [mem_seg], exact ⟨lt_of_Flt xA yA Fxy (fne xa) (fne ya), xa, ya⟩,
@@ -998,9 +998,9 @@ begin
         intro mem_img, exact bBF.right (img_subset_ran mem_img),
       subst eq, apply bBF.right, rw ←Fdom at xA, exact fun_value_def'' Ffun xA,
     intros x xb, rw mem_seg at xb, apply classical.by_contradiction, intro xF, apply le, refine ⟨_, _, xb⟩,
-    rw mem_diff, exact ⟨(mem_fld_of_pair_mem_rel_struct xb).left, xF⟩,
+    rw mem_diff, exact ⟨(mem_fld_of_pair_mem_struct xb).left, xF⟩,
   right, left, refine ⟨_, bBF.left, F, ⟨⟨⟨Ffun, Fdom, Fran⟩, Foto⟩, _⟩⟩,
-  intros x y xA yA, simp only [←Fran, rel_struct_restrict_rel, mem_inter, pair_mem_prod], split,
+  intros x y xA yA, simp only [←Fran, struct_restrict_rel, mem_inter, pair_mem_prod], split,
     intro xy, refine ⟨Flt_of_lt xy (fne xA) (fne yA), fun_value_def'' Ffun _, fun_value_def'' Ffun _⟩,
       rw Fdom, exact xA,
     rw Fdom, exact yA,
@@ -1017,17 +1017,17 @@ begin
 end
 
 -- Theorem 7L
-theorem eps_img_trans_well_eq_self {α : Set} (trans : α.transitive_set) (well : α.well_order α.eps_order) : eps_img α.eps_order_rel_struct = α :=
+theorem eps_img_trans_well_eq_self {α : Set} (trans : α.transitive_set) (well : α.well_order α.eps_order) : eps_img α.eps_order_struct = α :=
 begin
-  have well' : α.eps_order_rel_struct.fld.well_order α.eps_order_rel_struct.rel,
-    simp only [eps_order_rel_struct_rel, eps_order_rel_struct_fld], exact well,
+  have well' : α.eps_order_struct.fld.well_order α.eps_order_struct.rel,
+    simp only [eps_order_struct_rel, eps_order_struct_fld], exact well,
   obtain ⟨efun, edom, eran⟩ := eps_img_fun_onto well',
-  let B := {x ∈ α | (eps_img_fun α.eps_order_rel_struct).fun_value x = x},
+  let B := {x ∈ α | (eps_img_fun α.eps_order_struct).fun_value x = x},
   have Be : B = α, apply transfinite_ind well sep_subset, intros t tA ind,
-    have tA' : t ∈ α.eps_order_rel_struct.fld, exact tA,
-    rw [mem_sep, eps_img_fun_value_img well' tA', eps_order_rel_struct_rel],
+    have tA' : t ∈ α.eps_order_struct.fld, exact tA,
+    rw [mem_sep, eps_img_fun_value_img well' tA', eps_order_struct_rel],
     refine ⟨tA, _⟩, apply ext, intro y,
-    have seg_sub : α.eps_order.seg t ⊆ α.eps_order_rel_struct.fld, rw [eps_order_rel_struct_fld], exact subset_trans ind sep_subset,
+    have seg_sub : α.eps_order.seg t ⊆ α.eps_order_struct.fld, rw [eps_order_struct_fld], exact subset_trans ind sep_subset,
     rw ←edom at seg_sub, rw [mem_img' efun seg_sub], split,
       rintro ⟨x, xt, yx⟩, subst yx, specialize ind xt, rw mem_sep at ind, rw ind.right,
       rw [mem_seg, eps_order, pair_mem_pair_sep] at xt, exact xt.right.right,
@@ -1035,15 +1035,15 @@ begin
     have yt' : y ∈ α.eps_order.seg t, rw [mem_seg, eps_order, pair_mem_pair_sep], refine ⟨_, tA, yt⟩,
       apply trans, rw mem_Union, exact ⟨_, tA, yt⟩,
     specialize ind yt', rw mem_sep at ind, refine ⟨_, yt', ind.right.symm⟩,
-  have ef : eps_img_fun α.eps_order_rel_struct = α.id, apply fun_ext efun id_is_function,
-      simp only [edom, id_into.right.left, eps_order_rel_struct_fld],
-    intros t tA, rw [edom, eps_order_rel_struct_fld, ←Be, mem_sep] at tA,
+  have ef : eps_img_fun α.eps_order_struct = α.id, apply fun_ext efun id_is_function,
+      simp only [edom, id_into.right.left, eps_order_struct_fld],
+    intros t tA, rw [edom, eps_order_struct_fld, ←Be, mem_sep] at tA,
     rw [id_value tA.left, tA.right],
   rw [←eran, ef], nth_rewrite 1 [←(@id_onto α).right.right],
 end
 
 theorem eps_img_trans_well_is_ordinal {α : Set} (trans : α.transitive_set) (well : α.well_order α.eps_order) : α.is_ordinal :=
-⟨α.eps_order_rel_struct, well, (eps_img_trans_well_eq_self trans well).symm⟩
+⟨α.eps_order_struct, well, (eps_img_trans_well_eq_self trans well).symm⟩
 
 lemma ordinal_well_ordered {α : Set} (ordinal : α.is_ordinal) : α.well_order α.eps_order :=
 begin
@@ -1055,46 +1055,46 @@ begin
   rcases ordinal with ⟨R, well, Re⟩, rw Re, exact eps_img_transitive well,
 end
 
-lemma restrict_seg_sub {R : rel_struct} {t : Set} (tA : t ∈ R.fld) : (rel_struct_restrict R (R.rel.seg t)).rel.seg t ⊆ R.rel.seg t :=
+lemma restrict_seg_sub {R : struct} {t : Set} (tA : t ∈ R.fld) : (struct_restrict R (R.rel.seg t)).rel.seg t ⊆ R.rel.seg t :=
 begin
-  intro x, simp only [mem_seg, rel_struct_restrict_rel, mem_inter],rintro ⟨xt, -⟩, exact xt,
+  intro x, simp only [mem_seg, struct_restrict_rel, mem_inter],rintro ⟨xt, -⟩, exact xt,
 end
 
-lemma eps_img_fun_restrict {R : rel_struct} (well : R.fld.well_order R.rel) {T : Set} (TA : T ∈ R.fld) :
-  ∀ {x : Set}, x ∈ R.rel.seg T → (eps_img_fun (rel_struct_restrict R (R.rel.seg T))).fun_value x = (eps_img_fun R).fun_value x :=
+lemma eps_img_fun_restrict {R : struct} (well : R.fld.well_order R.rel) {T : Set} (TA : T ∈ R.fld) :
+  ∀ {x : Set}, x ∈ R.rel.seg T → (eps_img_fun (struct_restrict R (R.rel.seg T))).fun_value x = (eps_img_fun R).fun_value x :=
 begin
   have sub := seg_sub_fld TA,
-  have well' := well_order_rel_struct_restrict well sub,
+  have well' := well_order_struct_restrict well sub,
   obtain ⟨efun, edom, -⟩ := eps_img_fun_onto well,
   obtain ⟨efun', edom', -⟩ := eps_img_fun_onto well',
-  let B := {x ∈ R.rel.seg T | (eps_img_fun (rel_struct_restrict R (R.rel.seg T))).fun_value x = (eps_img_fun R).fun_value x},
+  let B := {x ∈ R.rel.seg T | (eps_img_fun (struct_restrict R (R.rel.seg T))).fun_value x = (eps_img_fun R).fun_value x},
   have BA : B = R.rel.seg T, apply transfinite_ind well' sep_subset,
     intros t ht ind, rw mem_sep, refine ⟨ht, _⟩,
     rw [eps_img_fun_value_img well' ht, eps_img_fun_value_img well (sub ht)], apply ext, intro x,
     have dsub : R.rel.seg t ⊆ (eps_img_fun R).dom, rw edom, exact seg_sub_fld (sub ht),
-    have dsub' : (rel_struct_restrict R (R.rel.seg T)).rel.seg t ⊆ (eps_img_fun (rel_struct_restrict R (R.rel.seg T))).dom,
-      rw [edom', rel_struct_restrict_rel, rel_struct_restrict_fld], intro z,
+    have dsub' : (struct_restrict R (R.rel.seg T)).rel.seg t ⊆ (eps_img_fun (struct_restrict R (R.rel.seg T))).dom,
+      rw [edom', struct_restrict_rel, struct_restrict_fld], intro z,
       simp only [mem_seg, mem_inter, pair_mem_prod], rintro ⟨-, zT, -⟩, exact zT,
     rw [mem_img' efun dsub, mem_img' efun' dsub'], split,
       rintro ⟨z, zt, xz⟩, subst xz, specialize ind zt, rw mem_sep at ind,
-      rw [rel_struct_restrict_rel, mem_seg, mem_inter, ←mem_seg] at zt, exact ⟨_, zt.left, ind.right⟩,
+      rw [struct_restrict_rel, mem_seg, mem_inter, ←mem_seg] at zt, exact ⟨_, zt.left, ind.right⟩,
     rintro ⟨z, zt, xz⟩, subst xz, use z,
-    have zt' : z ∈ (rel_struct_restrict R (R.rel.seg T)).rel.seg t,
-      simp only [mem_seg, rel_struct_restrict_rel, mem_inter, mem_prod, exists_prop],
-      rw [rel_struct_restrict_fld] at ht, rw mem_seg at zt ht,
+    have zt' : z ∈ (struct_restrict R (R.rel.seg T)).rel.seg t,
+      simp only [mem_seg, struct_restrict_rel, mem_inter, mem_prod, exists_prop],
+      rw [struct_restrict_fld] at ht, rw mem_seg at zt ht,
       exact ⟨zt, _, well.lin.trans zt ht, _, ht, rfl⟩,
     specialize ind zt', rw mem_sep at ind, exact ⟨zt', ind.right.symm⟩,
   intros t tT, rw [←BA, mem_sep] at tT, exact tT.right,
 end
 
-lemma eps_img_img_eps_fun {R : rel_struct} (well : R.fld.well_order R.rel) {t : Set} (tA : t ∈ R.fld) :
-  eps_img ((R.rel.seg t).rel_struct_restrict R) = (eps_img_fun R).img (R.rel.seg t) :=
+lemma eps_img_img_eps_fun {R : struct} (well : R.fld.well_order R.rel) {t : Set} (tA : t ∈ R.fld) :
+  eps_img ((R.rel.seg t).struct_restrict R) = (eps_img_fun R).img (R.rel.seg t) :=
 begin
-  have well' : (rel_struct_restrict R (R.rel.seg t)).fld.well_order (rel_struct_restrict R (R.rel.seg t)).rel
-    := well_order_rel_struct_restrict well (seg_sub_fld tA),
+  have well' : (struct_restrict R (R.rel.seg t)).fld.well_order (struct_restrict R (R.rel.seg t)).rel
+    := well_order_struct_restrict well (seg_sub_fld tA),
   obtain ⟨efun, edom, -⟩ := eps_img_fun_onto well,
   have sub : R.rel.seg t ⊆ (eps_img_fun R).dom, rw edom, exact seg_sub_fld tA,
-  apply ext, simp only [mem_eps_img well', mem_img' efun sub, rel_struct_restrict_fld], intro y, split,
+  apply ext, simp only [mem_eps_img well', mem_img' efun sub, struct_restrict_fld], intro y, split,
     rintro ⟨x, xt, yx⟩, subst yx, refine ⟨x, xt, eps_img_fun_restrict well tA xt⟩,
   rintro ⟨x, xt, yx⟩, subst yx, refine ⟨x, xt, (eps_img_fun_restrict well tA xt).symm⟩,
 end
@@ -1104,7 +1104,7 @@ theorem ord_of_mem_ord {α : Set} (ord : α.is_ordinal) {x : Set} (xα : x ∈ �
 begin
   rcases ord with ⟨R, well, αe⟩, rw [αe, mem_eps_img well] at xα,
   obtain ⟨t, tA, xt⟩ := xα, subst xt,
-  refine ⟨(R.rel.seg t).rel_struct_restrict R, well_order_rel_struct_restrict well (seg_sub_fld tA), _⟩,
+  refine ⟨(R.rel.seg t).struct_restrict R, well_order_struct_restrict well (seg_sub_fld tA), _⟩,
   rw [eps_img_fun_value_img well tA], exact (eps_img_img_eps_fun well tA).symm,
 end
 
@@ -1121,9 +1121,9 @@ begin
   exact eps_img_fun_irrefl well tA ee,
 end
 
-lemma restrict_eps_order_eq {β : Set} (βtrans : β.transitive_set) {δ : Set} (δβ : δ ∈ β) : rel_struct_restrict β.eps_order_rel_struct δ = δ.eps_order_rel_struct :=
+lemma restrict_eps_order_eq {β : Set} (βtrans : β.transitive_set) {δ : Set} (δβ : δ ∈ β) : struct_restrict β.eps_order_struct δ = δ.eps_order_struct :=
 begin
-  simp only [eps_order_rel_struct, rel_struct_restrict, eps_order], refine ⟨rfl, _⟩,
+  simp only [eps_order_struct, struct_restrict, eps_order], refine ⟨rfl, _⟩,
   apply rel_ext (inter_rel_is_rel pair_sep_is_rel) pair_sep_is_rel, intros x y,
   simp only [mem_inter, pair_mem_pair_sep, pair_mem_prod], split,
     rintro ⟨⟨-, -, xy⟩, xδ, yδ⟩, exact ⟨xδ, yδ, xy⟩,
@@ -1132,14 +1132,14 @@ begin
 end
 
 lemma mem_of_iso_seg {α : Set} (αord : α.is_ordinal) {β : Set} (βord : β.is_ordinal) {δ : Set} (δβ : δ ∈ β)
-  (iso : isomorphic α.eps_order_rel_struct (rel_struct_restrict β.eps_order_rel_struct (β.eps_order_rel_struct.rel.seg δ))) : α ∈ β :=
+  (iso : isomorphic α.eps_order_struct (struct_restrict β.eps_order_struct (β.eps_order_struct.rel.seg δ))) : α ∈ β :=
 begin
-  have αwell : α.eps_order_rel_struct.fld.well_order α.eps_order_rel_struct.rel := ordinal_well_ordered αord,
-  have βwell : β.eps_order_rel_struct.fld.well_order β.eps_order_rel_struct.rel := ordinal_well_ordered βord,
+  have αwell : α.eps_order_struct.fld.well_order α.eps_order_struct.rel := ordinal_well_ordered αord,
+  have βwell : β.eps_order_struct.fld.well_order β.eps_order_struct.rel := ordinal_well_ordered βord,
   have αtrans := ordinal_trans αord, have βtrans := ordinal_trans βord,
-  rw [eps_order_rel_struct_rel, seg_eq_of_trans βtrans δβ, restrict_eps_order_eq βtrans δβ] at iso,
+  rw [eps_order_struct_rel, seg_eq_of_trans βtrans δβ, restrict_eps_order_eq βtrans δβ] at iso,
   have δord := ord_of_mem_ord βord δβ,
-  have δwell : δ.eps_order_rel_struct.fld.well_order δ.eps_order_rel_struct.rel := ordinal_well_ordered δord,
+  have δwell : δ.eps_order_struct.fld.well_order δ.eps_order_struct.rel := ordinal_well_ordered δord,
   have δtrans := ordinal_trans δord,
   rw [iso_iff_eps_img_eq αwell δwell] at iso,
   rw [eps_img_trans_well_eq_self αtrans αwell, eps_img_trans_well_eq_self δtrans δwell] at iso,
@@ -1149,16 +1149,16 @@ end
 -- Theorem 7M part d
 theorem ord_conn {α : Set} (αord : α.is_ordinal) {β : Set} (βord : β.is_ordinal) (αβ : α ≠ β) : α ∈ β ∨ β ∈ α :=
 begin
-  have αwell : α.eps_order_rel_struct.fld.well_order α.eps_order_rel_struct.rel := ordinal_well_ordered αord,
-  have βwell : β.eps_order_rel_struct.fld.well_order β.eps_order_rel_struct.rel := ordinal_well_ordered βord,
+  have αwell : α.eps_order_struct.fld.well_order α.eps_order_struct.rel := ordinal_well_ordered αord,
+  have βwell : β.eps_order_struct.fld.well_order β.eps_order_struct.rel := ordinal_well_ordered βord,
   have αtrans := ordinal_trans αord, have βtrans := ordinal_trans βord,
   rcases T7K αwell βwell with (RS|⟨δ, δβ, iso⟩|⟨δ, δα, iso⟩),
   { exfalso, apply αβ, rw [iso_iff_eps_img_eq αwell βwell] at RS,
     rw [eps_img_trans_well_eq_self αtrans αwell, eps_img_trans_well_eq_self βtrans βwell] at RS,
     exact RS, },
-  { rw eps_order_rel_struct_fld at δβ,
+  { rw eps_order_struct_fld at δβ,
     left, exact mem_of_iso_seg αord βord δβ iso, },
-  { rw eps_order_rel_struct_fld at δα,
+  { rw eps_order_struct_fld at δα,
     right, exact mem_of_iso_seg βord αord δα (iso_symm iso), },
 end
 
@@ -1397,7 +1397,7 @@ begin
     have βwell := ordinal_well_ordered βord,
     have Swell : B.well_order S, refine well_order_from_fun (into_of_onto (inv_onto_of_onto fonto foto)) _ βwell,
       rw ←T3F_b fonto.left.left, exact fonto.left,
-    have iso : f.isomorphism β.eps_order_rel_struct ⟨B, S, pair_sep_sub_prod⟩,
+    have iso : f.isomorphism β.eps_order_struct ⟨B, S, pair_sep_sub_prod⟩,
       refine ⟨⟨fonto, foto⟩, _⟩, intros x y xβ yβ, dsimp, dsimp at xβ yβ,
       have fxB : f.fun_value x ∈ B, rw ←fonto.right.right, apply fun_value_def'' fonto.left, rw fonto.right.left, exact xβ,
       have fyB : f.fun_value y ∈ B, rw ←fonto.right.right, apply fun_value_def'' fonto.left, rw fonto.right.left, exact yβ,
@@ -1411,8 +1411,8 @@ begin
       rw memW, exact ⟨_, _, rfl, BA, Swell⟩,
     change β = if is_rel : P.snd ⊆ P.fst.prod P.fst then eps_img ⟨P.fst, P.snd, is_rel⟩ else ∅,
     simp only [dif_pos cond, fst_congr, snd_congr],
-    let P' : rel_struct := ⟨B, S, Swell.lin.rel⟩,
-    let β' : rel_struct := β.eps_order_rel_struct,
+    let P' : struct := ⟨B, S, Swell.lin.rel⟩,
+    let β' : struct := β.eps_order_struct,
     have Swell' : P'.fld.well_order P'.rel := Swell,
     have βwell' : β'.fld.well_order β'.rel := βwell,
     rw ←(iso_iff_eps_img_eq βwell' Swell').mp ⟨f, iso⟩,
