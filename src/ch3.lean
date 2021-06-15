@@ -17,6 +17,14 @@ begin
     exact ⟨a, ha, b, hb, rfl, hp⟩, },
 end
 
+lemma pair_mem_pair_sep' {p : Set → Set → Prop} {x y a : Set} (a' : a ∈ x) {b : Set} (b' : b ∈ y) :
+  a.pair b ∈ pair_sep p x y ↔ p a b :=
+begin
+  simp only [pair_mem_pair_sep], split,
+    rintro ⟨-, -, pab⟩, exact pab,
+  intro pab, exact ⟨a', b', pab⟩,
+end
+
 theorem pair_unordered {a b : Set} : ({a, b} : Set) = {b, a} :=
 begin
   apply ext,
@@ -810,6 +818,12 @@ begin
     assumption, },
   { rintro ⟨a, t, b, he, hf, hg⟩,
     exact ⟨a, b, he, b, t, a, rfl, hg, hf⟩, },
+end
+
+theorem inv_onto_of_onto {F A B : Set} (Fonto : F.onto_fun A B) (Foto : F.one_to_one) : F.inv.onto_fun B A :=
+begin
+  rw [onto_fun, T3F_a, T3E_a, T3E_b, Fonto.right.right],
+  exact ⟨Foto, rfl, Fonto.right.left⟩,
 end
 
 lemma dom_comp_sub {F G : Set} : (F.comp G).dom ⊆ G.dom :=

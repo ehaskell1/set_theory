@@ -32,9 +32,6 @@ structure rel_struct :=
 (fld rel : Set)
 (is_rel : rel ⊆ fld.prod fld)
 
-structure struct :=
-(fld rel : Set)
-
 def is_least (D R m : Set) : Prop := ¬ ∃ x : Set, x ∈ D ∧ x.pair m ∈ R
 
 theorem least_unique {A R : Set} (lin : A.lin_order R) {D : Set} (DA : D ⊆ A) {m n : Set} (mD : m ∈ D) (nD : n ∈ D)
@@ -1386,8 +1383,43 @@ theorem exists_large_ord {A : Set} : ∃ α : Set, α.is_ordinal ∧ ¬ α ≼ A
 begin
   let W := {x ∈ A.powerset.prod (A.prod A).powerset | ∃ B R : Set, x = B.pair R ∧ B ⊆ A ∧ B.well_order R},
   have memW : ∀ {x : Set}, x ∈ W ↔ ∃ B R : Set, x = B.pair R ∧ B ⊆ A ∧ B.well_order R,
-    sorry,
-  obtain ⟨𝓔, mem𝓔⟩ := @replacement'' (λ S, eps_img ⟨S.fst, S.snd⟩) W,
+    simp only [mem_powerset, and_imp, exists_prop, mem_sep, and_iff_right_iff_imp, mem_prod, exists_imp_distrib],
+    intros X B R XBR BA Rwell, subst XBR, refine ⟨_, BA, R, _, rfl⟩,
+    apply subset_trans Rwell.lin.rel, intros x xBB, rw mem_prod at xBB,
+    rcases xBB with ⟨a, aB, b, bB, xab⟩, subst xab, rw pair_mem_prod, exact ⟨BA aB, BA bB⟩,
+  let f : Set → Set := (λ S, if is_rel : S.snd ⊆ S.fst.prod S.fst then eps_img ⟨S.fst, S.snd, is_rel⟩ else ∅),
+  obtain ⟨𝓔, mem𝓔⟩ := @replacement'' f W,
+  let α : Set := {β ∈ 𝓔 | β.is_ordinal ∧ β ≼ A},
+  have memα : ∀ {β : Set}, β ∈ α ↔ β.is_ordinal ∧ β ≼ A,
+    simp only [and_imp, mem_sep, and_iff_right_iff_imp, dominated_iff],
+    rintros β βord ⟨B, BA, f, fonto, foto⟩,  rw mem𝓔,
+    let S := fun_order B β.eps_order f.inv,
+    have βwell := ordinal_well_ordered βord,
+    have Swell : B.well_order S, refine well_order_from_fun (into_of_onto (inv_onto_of_onto fonto foto)) _ βwell,
+      rw ←T3F_b fonto.left.left, exact fonto.left,
+    have iso : f.isomorphism β.eps_order_rel_struct ⟨B, S, pair_sep_sub_prod⟩,
+      refine ⟨⟨fonto, foto⟩, _⟩, intros x y xβ yβ, dsimp, dsimp at xβ yβ,
+      have fxB : f.fun_value x ∈ B, rw ←fonto.right.right, apply fun_value_def'' fonto.left, rw fonto.right.left, exact xβ,
+      have fyB : f.fun_value y ∈ B, rw ←fonto.right.right, apply fun_value_def'' fonto.left, rw fonto.right.left, exact yβ,
+      have xd : x ∈ f.dom, rw fonto.right.left, exact xβ,
+      have yd : y ∈ f.dom, rw fonto.right.left, exact yβ,
+      simp only [S, fun_order, pair_mem_pair_sep' fxB fyB, T3G_a fonto.left foto _ xd, T3G_a fonto.left foto _ yd],
+    let P := B.pair S,
+    have cond : P.snd ⊆ P.fst.prod P.fst,
+      simp only [fst_congr, snd_congr], exact Swell.lin.rel,
+    use P, split,
+      rw memW, exact ⟨_, _, rfl, BA, Swell⟩,
+    change β = if is_rel : P.snd ⊆ P.fst.prod P.fst then eps_img ⟨P.fst, P.snd, is_rel⟩ else ∅,
+    simp only [dif_pos cond, fst_congr, snd_congr],
+    let P' : rel_struct := ⟨B, S, Swell.lin.rel⟩,
+    let β' : rel_struct := β.eps_order_rel_struct,
+    have Swell' : P'.fld.well_order P'.rel := Swell,
+    have βwell' : β'.fld.well_order β'.rel := βwell,
+    rw ←(iso_iff_eps_img_eq βwell' Swell').mp ⟨f, iso⟩,
+    symmetry, exact eps_img_trans_well_eq_self (ordinal_trans βord) βwell,
+  apply classical.by_contradiction, intro all, push_neg at all,
+  apply not_exists_ord_set, use α, intro β,
+  simp only [memα, and_iff_left_iff_imp], exact all _,
 end
 
 
