@@ -294,4 +294,7 @@ begin
   intros x xCB, rw mem_diff at *, exact ⟨xCB.left, assume xA, xCB.right (AB xA)⟩,
 end
 
+lemma mem_sep' {X : Set} {p : Set → Prop} {x : Set} (xX : x ∈ X) : x ∈ {x ∈ X | p x} ↔ p x :=
+by simp only [mem_sep, xX, true_and]
+
 end Set

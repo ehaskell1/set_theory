@@ -1109,7 +1109,7 @@ begin
 end
 
 -- Theorem 7M part b
-theorem ord_mem_trans {α : Set} (αord : α.is_ordinal) {β : Set} (βord : β.is_ordinal) {γ : Set} (γord : γ.is_ordinal)
+theorem ord_mem_trans {α β γ : Set} (γord : γ.is_ordinal)
   (αβ : α ∈ β) (βγ : β ∈ γ) : α ∈ γ :=
 transitive_set_iff.mp (ordinal_trans γord) βγ αβ
 
@@ -1177,7 +1177,7 @@ begin
       apply le, use α, rw [eps_order, pair_mem_pair_sep, mem_inter],
       exact ⟨⟨αβ, αS⟩, αβ, μβ.left, αμ.right.right⟩,
     apply αβ,
-    apply ord_mem_trans (Sord αS) (Sord μβ.right) (Sord βS) αμ.right.right μβ.left, },
+    apply ord_mem_trans (Sord βS) αμ.right.right μβ.left, },
 end
 
 lemma is_ordinal_iff {α : Set} : α.is_ordinal ↔ α.transitive_set ∧ α.well_order α.eps_order :=
@@ -1188,7 +1188,7 @@ begin
   refine ⟨pair_sep_sub_prod, _, _, _⟩,
   { intros x y z xy yz, rw [eps_order, pair_mem_pair_sep] at *,
     rcases xy with ⟨xA, yA, xy⟩, rcases yz with ⟨-, zA, yz⟩,
-    exact ⟨xA, zA, ord_mem_trans (Aord xA) (Aord yA) (Aord zA) xy yz⟩, },
+    exact ⟨xA, zA, ord_mem_trans (Aord zA) xy yz⟩, },
   { intros x xx, rw [eps_order, pair_mem_pair_sep] at xx,
     rcases xx with ⟨xA, -, xx⟩, exact ord_mem_irrefl (Aord xA) xx, },
   { intros x y xA yA xney, simp only [eps_order, pair_mem_pair_sep],
@@ -1291,6 +1291,13 @@ begin
   rw mem_sep, exact ⟨xα, ord_of_mem_ord αord xα⟩,
 end
 
+lemma seg_ord_eq_self {α : Set} (αord : α.is_ordinal) {β : Set} (βα : β ∈ α) : α.eps_order.seg β = β :=
+begin
+  apply ext, intro γ, rw [mem_seg, eps_order, pair_mem_pair_sep], split,
+    rintro ⟨-, -, γβ⟩, exact γβ,
+  intro γβ, exact ⟨ord_mem_trans αord γβ βα, βα, γβ⟩,
+end
+
 -- Burali-Forti Theorem
 theorem not_exists_ord_set : ¬ ∃ Ω : Set, ∀ {x : Set}, x ∈ Ω ↔ x.is_ordinal :=
 begin
@@ -1310,7 +1317,7 @@ begin
       exfalso, exact αβ (or.inl h),
     exact h,
   rintros βα (αβ|αβ),
-    exact ord_mem_irrefl αord (ord_mem_trans αord βord αord αβ βα),
+    exact ord_mem_irrefl αord (ord_mem_trans αord αβ βα),
   subst αβ, exfalso, exact ord_mem_irrefl αord βα,
 end
 
@@ -1327,7 +1334,7 @@ begin
     have βe : β = S.Union, apply ext, intro γ, split,
         intro γβ, rw mem_Union, exact ⟨_, βS, γβ⟩,
       rw mem_Union, rintro ⟨α, αS, γα⟩, cases ge αS with αβ αβ,
-        apply ord_mem_trans (ord_of_mem_ord (Sord αS) γα) (Sord αS) (Sord βS) γα αβ,
+        apply ord_mem_trans (Sord βS) γα αβ,
       subst αβ, exact γα,
     subst βe, exact case βS,
   refine or.inl ⟨case, nmax, _⟩, rintro ⟨α, αe⟩, push_neg at nmax,
@@ -1420,6 +1427,100 @@ begin
   apply classical.by_contradiction, intro all, push_neg at all,
   apply not_exists_ord_set, use α, intro β,
   simp only [memα, and_iff_left_iff_imp], exact all _,
+end
+
+-- Well-Ordering Theorem
+theorem exists_well_order {A : Set} : ∃ R : Set, A.well_order R :=
+begin
+  obtain ⟨α, αord, ndom⟩ := @exists_large_ord A,
+  obtain ⟨G, Gfun, Gdom, Gspec⟩ := @ax_ch_3 A,
+  obtain ⟨e, eA⟩ := univ_not_set' A,
+  let rec := λ f : Set, if A \ f.ran = ∅ then e else G.fun_value (A \ f.ran),
+  obtain ⟨F, ⟨Ffun, Fdom, Fspec⟩, -⟩ := transfinite_rec' (ordinal_well_ordered αord) rec,
+  have Fval : ∀ {γ : Set}, γ ∈ α → A \ F.img γ ≠ ∅ → F.fun_value γ = G.fun_value (A \ F.img γ),
+    intros γ γα case, rw ←restrict_ran at case,
+    simp only [Fspec γα, seg_ord_eq_self αord γα, rec],
+    simp only [case, if_false], rw restrict_ran,
+  have Fval' : ∀ {γ : Set}, γ ∈ α → A \ F.img γ = ∅ → F.fun_value γ = e,
+    intros γ γα case, rw ←restrict_ran at case,
+    simp only [Fspec γα, seg_ord_eq_self αord γα, rec],
+    simp only [case, if_true, eq_self_iff_true],
+  have Fran : F.ran ⊆ A ∪ {e}, intros x xF, rw mem_ran_iff Ffun at xF,
+    rcases xF with ⟨δ, δα, xFδ⟩, subst xFδ, rw Fdom at δα, rw [mem_union, mem_singleton],
+    by_cases case : A \ (F.img δ) = ∅,
+      right, exact Fval' δα case,
+    left, rw Fval δα case,
+    have sub : A \ F.img δ ∈ G.dom, rw [Gdom, mem_sep, mem_powerset], exact ⟨subset_diff, case⟩,
+    exact subset_diff (Gspec _ sub),
+  have Foto'' : ∀ {β : Set}, β ∈ α → F.fun_value β ≠ e → ∀ {γ : Set}, γ ∈ β → F.fun_value γ ≠ e → F.fun_value β ≠ F.fun_value γ,
+    intros β βα Fβe γ γβ Fγe Fβγ,
+    have Fβ : F.fun_value β ∉ F.img β,
+      have h : A \ F.img β ≠ ∅, intro h, exact Fβe (Fval' βα h),
+      specialize Fval βα h, rw Fval,
+      have h' : A \ F.img β ∈ G.dom, rw [Gdom, mem_sep, mem_powerset], exact ⟨subset_diff, h⟩,
+      specialize Gspec _ h', rw mem_diff at Gspec, exact Gspec.right,
+    apply Fβ, rw Fβγ, refine fun_value_mem_img Ffun _ γβ,
+    rw Fdom, rw ←ord_le_iff_sub (ord_of_mem_ord αord βα) αord, left, exact βα,
+  have Foto' : ∀ {β : Set}, β ∈ α → F.fun_value β ≠ e → ∀ {γ : Set}, γ ∈ α → F.fun_value γ ≠ e → β ≠ γ → F.fun_value β ≠ F.fun_value γ,
+    intros β βα Fβe γ γα Fγe βneγ,
+    cases ord_conn (ord_of_mem_ord αord βα) (ord_of_mem_ord αord γα) βneγ with βγ γβ,
+      exact (Foto'' γα Fγe βγ Fβe).symm,
+    exact Foto'' βα Fβe γβ Fγe,
+  have eran : e ∈ F.ran,
+    apply classical.by_contradiction, intro eran, apply ndom, use F, split,
+      refine ⟨Ffun, Fdom, _⟩, intros y yran,
+      specialize Fran yran, rw [mem_union, mem_singleton] at Fran, cases Fran,
+        exact Fran,
+      exfalso, rw Fran at yran, exact eran yran,
+    have h : ∀ {β : Set}, β ∈ α → F.fun_value β ≠ e, intros β βα Fβe,
+      apply eran, rw mem_ran_iff Ffun, rw Fdom, exact ⟨_, βα, Fβe.symm⟩,
+    apply one_to_one_of Ffun, intros β βα γ γα βγ, rw Fdom at βα γα,
+    exact Foto' βα (h βα) γα (h γα) βγ,
+  rw mem_ran_iff Ffun at eran,
+  let X := {δ ∈ α | F.fun_value δ = e},
+  have XE : X ≠ ∅, apply ne_empty_of_inhabited, rcases eran with ⟨δ, δα, eFδ⟩, use δ, rw mem_sep,
+    rw Fdom at δα, exact ⟨δα, eFδ.symm⟩,
+  obtain ⟨δ, δX, le⟩ := (ordinal_well_ordered αord).well XE sep_subset,
+  rw mem_sep at δX,
+  have ne : ∀ {β : Set}, β ∈ δ → F.fun_value β ≠ e,
+    intros β βδ Fβe, apply le, use β,
+    have βα : β ∈ α := ord_mem_trans αord βδ δX.left,
+    rw [mem_sep' βα, eps_order, pair_mem_pair_sep' βα δX.left],
+    exact ⟨Fβe, βδ⟩,
+  use A.fun_order α.eps_order (F.restrict δ).inv, refine well_order_from_fun _ _ (ordinal_well_ordered αord),
+    have δsub : δ ⊆ F.dom, rw Fdom, rw ←ord_le_iff_sub (ord_of_mem_ord αord δX.left) αord, left, exact δX.left,
+    rw [into_fun, T3F_a, T3E_a, T3E_b, restrict_dom δsub, ←Fdom, restrict_ran], refine ⟨_, _, δsub⟩,
+      apply one_to_one_ext (restrict_is_function Ffun), simp only [restrict_dom δsub],
+      intros β γ βδ γδ Fβγ,
+      rw [restrict_fun_value Ffun δsub βδ, restrict_fun_value Ffun δsub γδ] at Fβγ,
+      apply classical.by_contradiction, intro βγ,
+      exact Foto' (ord_mem_trans αord βδ δX.left) (ne βδ) (ord_mem_trans αord γδ δX.left) (ne γδ) βγ Fβγ,
+    have sub : F.img δ ⊆ A, intro x, rw [mem_img' Ffun δsub],
+      rintro ⟨β, βδ, xFβ⟩, subst xFβ,
+      have h : F.fun_value β ∈ A ∪ {e}, apply Fran, apply fun_value_def'' Ffun, rw Fdom,
+        exact ord_mem_trans αord βδ δX.left,
+      rw [mem_union, mem_singleton] at h, cases h,
+        exact h,
+      exfalso, exact ne βδ h,
+    apply classical.by_contradiction, intro FδA,
+    have diffne : A \ F.img δ ≠ ∅ := diff_ne_empty_of_ne sub FδA,
+    rcases δX with ⟨δα, Fδe⟩,
+    rw Fval δα (diff_ne_empty_of_ne sub FδA) at Fδe, apply eA, rw ←Fδe,
+    have h : A \ F.img δ ∈ G.dom, rw [Gdom, mem_sep, mem_powerset],
+      exact ⟨subset_diff, diffne⟩,
+    exact subset_diff (Gspec _ h),
+  rw ←T3F_b (restrict_is_rel), exact restrict_is_function Ffun,
+end
+
+-- Numeration Theorem
+theorem exists_equin_ordinal {A : Set} : ∃ α : Set, α.is_ordinal ∧ A ≈ α :=
+begin
+  obtain ⟨R, Rwell⟩ := @exists_well_order A,
+  let R' : struct := ⟨A, R, Rwell.lin.rel⟩,
+  have Rwell' : R'.fld.well_order R'.rel := Rwell,
+  refine ⟨eps_img R', ⟨_, Rwell', rfl⟩, _⟩,
+  obtain ⟨corr, -⟩ := eps_img_iso Rwell',
+  exact ⟨_, corr⟩,
 end
 
 
