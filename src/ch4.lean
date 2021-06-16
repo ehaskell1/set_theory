@@ -727,6 +727,8 @@ end
 instance : has_lt Set := ⟨Set.has_mem.mem⟩
 instance : has_le Set := ⟨(λ m n, m ∈ n ∨ m = n)⟩
 
+lemma le_self {x : Set} : x ≤ x := or.inr rfl
+
 @[simp]
 lemma lt_def {n m : Set} : n < m ↔ n ∈ m := by refl
 

@@ -1183,6 +1183,38 @@ end
 lemma is_ordinal_iff {α : Set} : α.is_ordinal ↔ α.transitive_set ∧ α.well_order α.eps_order :=
 ⟨assume ord, ⟨ordinal_trans ord, ordinal_well_ordered ord⟩, assume ⟨trans, well⟩, eps_img_trans_well_is_ordinal trans well⟩
 
+lemma nat_is_ord {n : Set} (nω : n ∈ ω) : n.is_ordinal :=
+begin
+  rw is_ordinal_iff, refine ⟨nat_transitive nω, ⟨pair_sep_sub_prod, _, _, _⟩, _⟩,
+  { intros x y z, simp only [eps_order, pair_mem_pair_sep],
+    rintros ⟨xn, yn, xy⟩ ⟨-, zn, yz⟩,
+    have xω := mem_nat_of_mem_nat_of_mem nω xn,
+    have yω := mem_nat_of_mem_nat_of_mem nω yn,
+    have zω := mem_nat_of_mem_nat_of_mem nω zn,
+    exact ⟨xn, zn, lt_trans xω yω zω xy yz⟩, },
+  { intro m, rw [eps_order, pair_mem_pair_sep],
+    rintro ⟨mn, -, mm⟩,
+    have mω := mem_nat_of_mem_nat_of_mem nω mn,
+    exact nat_not_mem_self mω mm, },
+  { intros m k mn kn mnek, simp only [eps_order, pair_mem_pair_sep],
+    have mω := mem_nat_of_mem_nat_of_mem nω mn,
+    have kω := mem_nat_of_mem_nat_of_mem nω kn,
+    cases nat_order_conn mω kω mnek with mk km,
+      left, exact ⟨mn, kn, mk⟩,
+    right, exact ⟨kn, mn, km⟩, },
+  { intros X XE Xn,
+    have Xω : X ⊆ ω, intros m mX, exact mem_nat_of_mem_nat_of_mem nω (Xn mX),
+    obtain ⟨m, mX, le⟩ := nat_well_order Xω XE,
+    refine ⟨_, mX, _⟩, rw is_least, push_neg,
+    intros k kX, rw [eps_order, pair_mem_pair_sep],
+    rintro ⟨kn, mn, km⟩, specialize le kX,
+    have kω := mem_nat_of_mem_nat_of_mem nω kn,
+    have mω := mem_nat_of_mem_nat_of_mem nω mn,
+    cases le with mk mk,
+      exact not_lt_and_gt kω mω ⟨km, mk⟩,
+    subst mk, exact nat_not_mem_self mω km, },
+end
+
 lemma eps_order_ordinals_lin {A : Set} (Aord : ∀ {x : Set}, x ∈ A → x.is_ordinal) : A.lin_order A.eps_order :=
 begin
   refine ⟨pair_sep_sub_prod, _, _, _⟩,
@@ -1319,6 +1351,17 @@ begin
   rintros βα (αβ|αβ),
     exact ord_mem_irrefl αord (ord_mem_trans αord αβ βα),
   subst αβ, exfalso, exact ord_mem_irrefl αord βα,
+end
+
+lemma ord_eq_iff_le_and_le {α : Set} (αord : α.is_ordinal) {β : Set} (βord : β.is_ordinal) : α = β ↔ α ≤ β ∧ β ≤ α :=
+begin
+  split,
+    intro αβ, subst αβ, exact ⟨le_self, le_self⟩,
+  rintro ⟨(αβ|αβ), (βα|βα)⟩,
+        exfalso, exact ord_mem_irrefl αord (ord_mem_trans αord αβ βα),
+      exact βα.symm,
+    exact αβ,
+  exact βα.symm,
 end
 
 -- exercise 18
@@ -1523,5 +1566,71 @@ begin
   exact ⟨_, corr⟩,
 end
 
+theorem exists_least_equin_ordinal {A : Set} :
+  ∃ α : Set, α.is_ordinal ∧ A ≈ α ∧ ∀ {β : Set}, β.is_ordinal → A ≈ β → α ≤ β :=
+begin
+  obtain ⟨α, αord, equin⟩ := @exists_equin_ordinal A,
+  let X := {β ∈ α.succ | A ≈ β},
+  have Xord : ∀ β : Set, β ∈ X → β.is_ordinal,
+    intros β βX, rw mem_sep at βX,
+    exact ord_of_mem_ord (succ_ord_of_ord αord) βX.left,
+  have XE : X ≠ ∅, apply ne_empty_of_inhabited, use α, rw mem_sep,
+    exact ⟨self_mem_succ, equin⟩,
+  obtain ⟨μ, μX, le⟩ := exists_least_ord_of_nonempty Xord XE,
+  refine ⟨_, Xord _ μX, _, _⟩,
+    rw mem_sep at μX, exact μX.right,
+  intros β βord equin',
+  by_cases βα : β ∈ α.succ,
+    have βX : β ∈ X, rw mem_sep, exact ⟨βα, equin'⟩,
+    rw [is_least, eps_order] at le, push_neg at le,
+    specialize le _ βX, rw pair_mem_pair_sep' βX μX at le,
+    rw ←ord_le_iff_lt (Xord _ μX) βord at le, push_neg at le, exact le,
+  apply classical.by_contradiction, intro μβ,
+  rw ord_le_iff_lt (Xord _ μX) βord at μβ,
+  rw mem_sep at μX, apply βα, 
+  exact ord_mem_trans (succ_ord_of_ord αord) μβ μX.left,
+end
+
+noncomputable def card' (A : Set) : Set := classical.some (@exists_least_equin_ordinal A)
+
+lemma card_is_ordinal {A : Set} : A.card'.is_ordinal :=
+(classical.some_spec (@exists_least_equin_ordinal A)).left
+lemma equin_card_of_self {A : Set} : A ≈ A.card' :=
+(classical.some_spec (@exists_least_equin_ordinal A)).right.left
+lemma card_least {A : Set} : ∀ {β : Set}, β.is_ordinal → A ≈ β → A.card' ≤ β :=
+(classical.some_spec (@exists_least_equin_ordinal A)).right.right
+
+-- Theorem 7P part a
+theorem card'_equiv {A B : Set} : A.card' = B.card' ↔ A ≈ B :=
+begin
+  split,
+    intro cardAB, apply equin_trans equin_card_of_self, rw cardAB,
+    apply equin_symm, exact equin_card_of_self,
+  intro AB,
+  have equin : A ≈ B.card' := equin_trans AB equin_card_of_self,
+  have equin' : B ≈ A.card' := equin_trans (equin_symm AB) equin_card_of_self,
+  have cardAB : A.card' ≤ B.card' := card_least card_is_ordinal equin,
+  have cardBA : B.card' ≤ A.card' := card_least card_is_ordinal equin',
+  rw ord_eq_iff_le_and_le card_is_ordinal card_is_ordinal,
+  exact ⟨cardAB, cardBA⟩,
+end
+
+-- Theorem 7P part b
+theorem card'_finite : ∀ {A : Set}, A.is_finite → A.card' ∈ ω ∧ A ≈ A.card' :=
+begin
+  intros A Afin, rcases Afin with ⟨n, nnat, An⟩,
+  refine ⟨_, equin_card_of_self⟩,
+  cases card_least (nat_is_ord nnat) An,
+    exact mem_nat_of_mem_nat_of_mem nnat h,
+  rw h, exact nnat,
+end
+
+def is_card'inal (N : Set) : Prop := ∃ A : Set, A.card' = N
+
+theorem card'_of_cardinal_eq_self {κ : Set} (h : κ.is_card'inal) : κ.card' = κ :=
+begin
+  rcases h with ⟨K, Kcard⟩, nth_rewrite 1 ←Kcard, rw card'_equiv,
+  rw ←Kcard, exact equin_symm equin_card_of_self,
+end
 
 end Set
