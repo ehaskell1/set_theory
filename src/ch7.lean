@@ -1390,44 +1390,6 @@ begin
   rw ←mem_succ_iff_mem, exact βα,
 end
 
--- exercise 20
-lemma finite_of_well_orderings {A R : Set} (Rwell : A.well_order R) (Rwell' : A.well_order R.inv) : A.is_finite :=
-begin
-  have eg : ∀ {X : Set}, X ≠ ∅ → X ⊆ A → ∃ m : Set, m ∈ X ∧ ∀ {x : Set}, x ∈ X → R.lin_le x m,
-    intros X XE XA, obtain ⟨m, mX, ge⟩ := Rwell'.well XE XA,
-    rw [is_least] at ge, push_neg at ge, refine ⟨_, mX, λ x, assume xX, _⟩,
-    rw le_iff_not_lt Rwell.lin (XA xX) (XA mX),
-    specialize ge _ xX, rw pair_mem_inv at ge, exact ge,
-  let closed := λ X : Set, ∀ {y : Set}, y ∈ X → ∀ {x : Set}, x.pair y ∈ R → x ∈ X,
-  have un : ∀ {X : Set}, X ≠ ∅ → X ⊆ A → closed X → ∃ m : Set, m ∈ X ∧ X = (R.seg m) ∪ {m},
-    intros X XE XA cl, obtain ⟨m, mX, ge⟩ := eg XE XA, refine ⟨m, mX, _⟩,
-    apply ext, intro x, rw [mem_union, mem_singleton, mem_seg, ←lin_le], split,
-      exact ge, rintro (xm|xm),
-        exact cl mX xm,
-      subst xm, exact mX,
-  have segcl : ∀ {t : Set}, t ∈ A → closed (R.seg t), intros t tA y yt x xy,
-    rw mem_seg at *, exact Rwell.lin.trans xy yt,
-  have segsub : ∀ {t : Set}, t ∈ A → R.seg t ⊆ A, intros t tA x xt,
-    rw mem_seg at xt, replace xt := Rwell.lin.rel xt, rw pair_mem_prod at xt,
-    exact xt.left,
-  have Acl : closed A, intros y yA x xy, replace xy := Rwell.lin.rel xy,
-    rw pair_mem_prod at xy, exact xy.left,
-  let B := {x ∈ A | (R.seg x).is_finite},
-  have BA : B = A, apply transfinite_ind Rwell sep_subset,
-    intros x xA ind, rw mem_sep,
-    by_cases se : R.seg x = ∅,
-      rw [se, ←card_finite_iff_finite, card_nat zero_nat, finite_cardinal_iff_nat],
-      exact ⟨xA, zero_nat⟩,
-    obtain ⟨m, mx, eq⟩ := un se (segsub xA) (@segcl _ xA), rw eq,
-    specialize ind mx, rw mem_sep at ind,
-    exact ⟨xA, union_finite_of_finite ind.right singleton_finite⟩,
-  by_cases Ae : A = ∅,
-    subst Ae, rw [←card_finite_iff_finite, card_nat zero_nat, finite_cardinal_iff_nat],
-    exact zero_nat,
-  obtain ⟨m, mx, eq⟩ := un Ae subset_self @Acl, rw eq, rw [←BA, mem_sep] at mx,
-  exact union_finite_of_finite mx.right singleton_finite,
-end
-
 -- Hartogs' Theorem
 theorem exists_large_ord {A : Set} : ∃ α : Set, α.is_ordinal ∧ ¬ α ≼ A :=
 begin
@@ -1591,32 +1553,32 @@ begin
   exact ord_mem_trans (succ_ord_of_ord αord) μβ μX.left,
 end
 
-noncomputable def card' (A : Set) : Set := classical.some (@exists_least_equin_ordinal A)
+noncomputable def card (A : Set) : Set := classical.some (@exists_least_equin_ordinal A)
 
-lemma card_is_ordinal {A : Set} : A.card'.is_ordinal :=
+lemma card_is_ordinal {A : Set} : A.card.is_ordinal :=
 (classical.some_spec (@exists_least_equin_ordinal A)).left
-lemma equin_card_of_self {A : Set} : A ≈ A.card' :=
+lemma equin_card_of_self {A : Set} : A ≈ A.card :=
 (classical.some_spec (@exists_least_equin_ordinal A)).right.left
-lemma card_least {A : Set} : ∀ {β : Set}, β.is_ordinal → A ≈ β → A.card' ≤ β :=
+lemma card_least {A : Set} : ∀ {β : Set}, β.is_ordinal → A ≈ β → A.card ≤ β :=
 (classical.some_spec (@exists_least_equin_ordinal A)).right.right
 
 -- Theorem 7P part a
-theorem card'_equiv {A B : Set} : A.card' = B.card' ↔ A ≈ B :=
+theorem card_equiv {A B : Set} : A.card = B.card ↔ A ≈ B :=
 begin
   split,
     intro cardAB, apply equin_trans equin_card_of_self, rw cardAB,
     apply equin_symm, exact equin_card_of_self,
   intro AB,
-  have equin : A ≈ B.card' := equin_trans AB equin_card_of_self,
-  have equin' : B ≈ A.card' := equin_trans (equin_symm AB) equin_card_of_self,
-  have cardAB : A.card' ≤ B.card' := card_least card_is_ordinal equin,
-  have cardBA : B.card' ≤ A.card' := card_least card_is_ordinal equin',
+  have equin : A ≈ B.card := equin_trans AB equin_card_of_self,
+  have equin' : B ≈ A.card := equin_trans (equin_symm AB) equin_card_of_self,
+  have cardAB : A.card ≤ B.card := card_least card_is_ordinal equin,
+  have cardBA : B.card ≤ A.card := card_least card_is_ordinal equin',
   rw ord_eq_iff_le_and_le card_is_ordinal card_is_ordinal,
   exact ⟨cardAB, cardBA⟩,
 end
 
 -- Theorem 7P part b
-theorem card'_finite : ∀ {A : Set}, A.is_finite → A.card' ∈ ω ∧ A ≈ A.card' :=
+theorem card_finite : ∀ {A : Set}, A.is_finite → A.card ∈ ω ∧ A ≈ A.card :=
 begin
   intros A Afin, rcases Afin with ⟨n, nnat, An⟩,
   refine ⟨_, equin_card_of_self⟩,
@@ -1625,11 +1587,11 @@ begin
   rw h, exact nnat,
 end
 
-def is_card'inal (N : Set) : Prop := ∃ A : Set, A.card' = N
+def is_cardinal (N : Set) : Prop := ∃ A : Set, A.card = N
 
-theorem card'_of_cardinal_eq_self {κ : Set} (h : κ.is_card'inal) : κ.card' = κ :=
+theorem card_of_cardinal_eq_self {κ : Set} (h : κ.is_cardinal) : κ.card = κ :=
 begin
-  rcases h with ⟨K, Kcard⟩, nth_rewrite 1 ←Kcard, rw card'_equiv,
+  rcases h with ⟨K, Kcard⟩, nth_rewrite 1 ←Kcard, rw card_equiv,
   rw ←Kcard, exact equin_symm equin_card_of_self,
 end
 
