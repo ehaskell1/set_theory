@@ -231,6 +231,13 @@ end
 
 def is_finite (A : Set) : Prop := ∃ n : Set, n ∈ ω ∧ A.equinumerous n
 
+lemma inhab_of_inf {X : Set} (Xinf : ¬ X.is_finite) : X.inhab :=
+begin
+  apply classical.by_contradiction, intro Xi, apply Xinf, refine ⟨_, zero_nat, _⟩,
+  rw inhab at Xi, push_neg at Xi,
+  rw (eq_empty _).mpr Xi, exact equin_refl,
+end
+
 lemma finite_of_equin_finite {A : Set} (hA : A.is_finite) {B : Set} (hAB : A ≈ B) : B.is_finite :=
 begin
   rcases hA with ⟨n, hn, hAn⟩, exact ⟨_, hn, equin_trans (equin_symm hAB) hAn⟩,
@@ -265,7 +272,7 @@ begin
         have froto: (f.restrict k).one_to_one := restrict_one_to_one hinto.left hoto hd,
         rw hi frinto froto, exact subset_self,
       have hf'' : ({k.pair (f.fun_value k)} : Set).ran = {k}, rw ran_singleton, rw singleton_eq,
-        have ho : f.fun_value k ∈ k ∨ f.fun_value k = k, rw [←le_iff, ←mem_succ_iff_mem],
+        have ho : f.fun_value k ∈ k ∨ f.fun_value k = k, rw [←le_iff, ←mem_succ_iff_le],
           apply hinto.right.right, apply fun_value_def'' hinto.left, rw hinto.right.left, exact self_mem_succ,
         cases ho,
         { exfalso, nth_rewrite 1 ←hf' at ho, rw [mem_ran_iff, restrict_dom hd] at ho,
@@ -297,7 +304,7 @@ begin
             { rw [←(pair_inj hz).left, (pair_inj hz).right, he], },
             { rw ←fun_def_equiv at hinto, exfalso, apply hz, left, rw ←he,
               rw fun_value_def hinto.left hm, }, },
-          { rw [mem_succ_iff_mem, le_iff] at hx, cases hx,
+          { rw [mem_succ_iff_le, le_iff] at hx, cases hx,
             { rw ←fun_def_equiv at hinto, refine ⟨f.fun_value x, or.inr ⟨fun_value_def' hinto.left _, _⟩, _⟩,
               { rw hinto.right.left, exact self_sub_succ hx, },
               { rintro (hpe|hpe),
@@ -332,7 +339,7 @@ begin
       have hor : ∀ {n : Set}, n ∈ k.succ → n = p ∨ n = k ∨ n ≠ p ∧ n ∈ k,
         intros m hmk, by_cases ho : m = p,
         { exact or.inl ho, },
-        { rw [mem_succ_iff_mem, le_iff] at hmk, cases hmk,
+        { rw [mem_succ_iff_le, le_iff] at hmk, cases hmk,
           { exact or.inr (or.inr ⟨ho, hmk⟩), },
           { exact or.inr (or.inl hmk), }, },
       have f'oto : f'.one_to_one,
@@ -385,7 +392,7 @@ begin
           rw [←hfo horm.left horm.right, ←hfo horn.left horn.right, hmn], },
       have f'cl : ∀ {n : Set}, n ∈ k → f'.fun_value n ∈ k,
         intros n hnk, by_cases hnp : n = p,
-        { rw [hnp, hfp], specialize hr self_mem_succ, rw [mem_succ_iff_mem, le_iff] at hr, cases hr,
+        { rw [hnp, hfp], specialize hr self_mem_succ, rw [mem_succ_iff_le, le_iff] at hr, cases hr,
           { exact hr, },
           { exfalso, nth_rewrite 1 ←he at hr,
             suffices hkp : k = p, rw ←hkp at hp, exact nat_not_mem_self hk hp,
@@ -393,7 +400,7 @@ begin
             { rw hinto.right.left, exact self_mem_succ, },
             { rw hinto.right.left, exact self_sub_succ hp, },
             exact hr, }, },
-        { rw hfo hnp hnk, specialize hr (self_sub_succ hnk), rw [mem_succ_iff_mem, le_iff] at hr, cases hr,
+        { rw hfo hnp hnk, specialize hr (self_sub_succ hnk), rw [mem_succ_iff_le, le_iff] at hr, cases hr,
           { exact hr, },
           { exfalso, rw ←he at hr, apply hnp, apply from_one_to_one hinto.left hoto,
             { rw hinto.right.left, exact self_sub_succ hnk, },
@@ -409,9 +416,9 @@ begin
       rw ←freq, exact hcaseI f'into f'oto @f'cl, },
     { replace hc : ∀ {n : Set}, n ∈ k → f.fun_value n ∈ k,
         intros n hn,
-        have ho : f.fun_value n ∈ k ∨ f.fun_value n = k, rw [←le_iff, ←mem_succ_iff_mem],
+        have ho : f.fun_value n ∈ k ∨ f.fun_value n = k, rw [←le_iff, ←mem_succ_iff_le],
           apply hinto.right.right, apply fun_value_def'' hinto.left, rw hinto.right.left,
-          rw [mem_succ_iff_mem, le_iff], finish,
+          rw [mem_succ_iff_le, le_iff], finish,
         cases ho,
         { assumption, },
         { exfalso, exact hc ⟨_, hn, ho⟩, },

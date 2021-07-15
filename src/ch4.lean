@@ -123,6 +123,13 @@ begin
   simp only [mem_union, or_iff_left_iff_imp], assumption,
 end
 
+-- exercise 3
+lemma powerset_transitive {A : Set} (Atrans : A.transitive_set) : A.powerset.transitive_set :=
+begin
+  rw transitive_set_iff' at *, intros X XA z zX, rw mem_powerset at *, apply Atrans,
+  apply XA, exact zX,
+end
+
 -- T4F
 theorem nat_transitive {n : Set} (hn : n ∈ ω) : n.transitive_set :=
 begin
@@ -735,7 +742,7 @@ lemma lt_def {n m : Set} : n < m ↔ n ∈ m := by refl
 @[simp]
 lemma le_iff {n m : Set} : m ≤ n ↔ m ∈ n ∨ m = n := by simp only [has_le.le]
 
-lemma mem_succ_iff_mem {p k : Set} : p ∈ k.succ ↔ p ≤ k :=
+lemma mem_succ_iff_le {p k : Set} : p ∈ k.succ ↔ p ≤ k :=
 by simp only [succ, mem_union, mem_singleton, le_iff, or_comm]
 
 lemma mem_nat_iff {n : Set} (hn : n ∈ ω) {x : Set} : x ∈ n ↔ x ∈ ω ∧ x ∈ n :=
@@ -748,9 +755,9 @@ lemma mem_nat_of_mem_nat_of_mem {n : Set} (hn : n ∈ ω) {m : Set} (hm : m ∈ 
 
 lemma subset_nat_of_mem_nat {n : Set} (hn : n ∈ ω) : n ⊆ ω := (λ m hm, mem_nat_of_mem_nat_of_mem hn hm)
 
-lemma self_mem_succ {n : Set} : n ∈ n.succ := by { rw [mem_succ_iff_mem, le_iff], finish, }
+lemma self_mem_succ {n : Set} : n ∈ n.succ := by { rw [mem_succ_iff_le, le_iff], finish, }
 lemma self_sub_succ {n : Set} : n ⊆ n.succ :=
-(λ m hmn, by { rw [mem_succ_iff_mem, le_iff], finish, })
+(λ m hmn, by { rw [mem_succ_iff_le, le_iff], finish, })
 
 -- Lemma 4L part a
 lemma mem_iff_succ_mem_succ {m n : Set} (hm : m ∈ ω) (hn : n ∈ ω) : m ∈ n ↔ m.succ ∈ n.succ :=
@@ -758,10 +765,10 @@ begin
   split,
   { revert hm m, refine induction _ _ hn,
     { intros m hm hc, exfalso, exact mem_empty _ hc, },
-    { intros k hk hi m hm hmk, rw [mem_succ_iff_mem, le_iff] at hmk, cases hmk,
+    { intros k hk hi m hm hmk, rw [mem_succ_iff_le, le_iff] at hmk, cases hmk,
       { apply self_sub_succ, exact hi hm hmk, },
       { subst hmk, exact self_mem_succ, }, }, },
-  { intro he, rw [mem_succ_iff_mem, le_iff] at he, cases he,
+  { intro he, rw [mem_succ_iff_le, le_iff] at he, cases he,
     { apply nat_transitive hn, simp only [mem_Union, exists_prop],
       refine ⟨_, he, _⟩, exact self_mem_succ, },
     { subst he, exact self_mem_succ }, },
@@ -769,7 +776,7 @@ end
 
 lemma mem_iff_succ_le {n : Set} (hn : n ∈ ω) {m : Set} (hm : m ∈ ω) : n ∈ m ↔ n.succ ≤ m :=
 begin
-  rw [mem_iff_succ_mem_succ hn hm, mem_succ_iff_mem],
+  rw [mem_iff_succ_mem_succ hn hm, mem_succ_iff_le],
 end
 
 -- Lemma 4L part b
@@ -800,12 +807,12 @@ begin
         { finish, },
       apply induction,
       { rw [le_iff], finish, },
-      { simp only [le_iff, mem_succ_iff_mem], intros m hm h, left, assumption, }, },
+      { simp only [le_iff, mem_succ_iff_le], intros m hm h, left, assumption, }, },
     { intros k hk hi m hm, specialize hi hm, rcases hi with (hi|hi|hi),
       { subst hi, right, left, exact self_mem_succ, },
-      { rw [mem_succ_iff_mem, le_iff], finish, },
+      { rw [mem_succ_iff_le, le_iff], finish, },
       { have h : k.succ ∈ m.succ, from (mem_iff_succ_mem_succ hk hm).mp hi,
-        rw [mem_succ_iff_mem, le_iff] at h, finish, }, }, },
+        rw [mem_succ_iff_le, le_iff] at h, finish, }, }, },
 end
 
 lemma lt_trans {k m n : Set} (hk : k ∈ ω) (hm : m ∈ ω) (hn : n ∈ ω) (hkm : k ∈ m) (hmn : m ∈ n) : k ∈ n :=
@@ -961,7 +968,7 @@ begin
   have h : ∀ {m : Set}, m.mem ω → ∀ {n : Set}, n.mem m → n ∉ A,
     refine @induction (λ m, ∀ {n : Set}, n.mem m → n ∉ A) _ _,
     { intros n hn, exfalso, exact mem_empty _ hn, },
-    { intros k hk hi n hnk, change n ∈ k.succ at hnk, rw [mem_succ_iff_mem, le_iff] at hnk, cases hnk,
+    { intros k hk hi n hnk, change n ∈ k.succ at hnk, rw [mem_succ_iff_le, le_iff] at hnk, cases hnk,
       { exact hi hnk, },
       { subst hnk, intro hnA, refine hc ⟨_, hnA, _⟩, intros m hmA, rw le_iff, by_cases n = m,
         { exact or.inr h, },
@@ -978,6 +985,14 @@ begin
   cases nat_order_conn hm hn hc with hmn hmn,
     exact or.inl hmn,
   contradiction,
+end
+
+lemma not_lt_of_le {n : Set} (hn : n ∈ ω) {m : Set} (hm : m ∈ ω) (h : n ≤ m) : ¬ (m ∈ n) :=
+begin
+  intro mn, cases h,
+    apply nat_not_mem_self hm,
+    apply lt_trans hm hn hm mn h,
+  subst h, exact nat_not_mem_self hn mn,
 end
 
 -- Corollary 4Q
@@ -1057,7 +1072,7 @@ lemma exists_addend_of_lt {m : Set.{u}} (hm : m ∈ (ω : Set.{u})) : ∀ {n : S
 begin
   apply @induction (λ n : Set.{u}, m ∈ n → ∃ p : Set.{u}, p ∈ (ω : Set.{u}) ∧ m + p.succ = n),
     intro hme, exfalso, exact mem_empty _ hme,
-  intros n hn hi hmn, rw [mem_succ_iff_mem, le_iff] at hmn, cases hmn,
+  intros n hn hi hmn, rw [mem_succ_iff_le, le_iff] at hmn, cases hmn,
     obtain ⟨p, hp, he⟩ := hi hmn,
     refine ⟨p.succ, nat_induct.succ_closed hp, _⟩,
     rw [add_ind hm (nat_induct.succ_closed hp), he],
@@ -1246,7 +1261,7 @@ begin
     have hsk : k < two * k, nth_rewrite 0 ←one_mul hk,
       rw [lt_def, ←mul_lt_mul_of_lt one_nat two_nat hk hknz], dsimp [two],
       exact self_mem_succ,
-    have hkn : k < n, simp only [lt_def] at *, subst he, rw [mem_succ_iff_mem, le_iff] at hmn, cases hmn,
+    have hkn : k < n, simp only [lt_def] at *, subst he, rw [mem_succ_iff_le, le_iff] at hmn, cases hmn,
         exact lt_trans hk (mul_into_nat two_nat hk) hn hsk hmn,
       rw ←hmn, exact hsk,
     obtain ⟨p, hp, q, hq, hqo, he'⟩ := hi hkn hknz,
@@ -1305,6 +1320,11 @@ begin
     rw two, exact self_mem_succ,
   rw [hom] at he, nth_rewrite 0 ←mul_one hk at he, apply one_ne_two,
   apply cancel_mul_left one_nat two_nat hk h he,
+end
+
+lemma mem_two {x : Set} : x ∈ two ↔ x = ∅ ∨ x = one :=
+begin
+  rw [two, succ, union_comm, mem_union, one, succ, union_empty, mem_singleton, mem_singleton],
 end
 
 end Set

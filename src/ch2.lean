@@ -204,6 +204,9 @@ lemma subset_union_right {A B : Set} : B ⊆ A ∪ B := begin rw union_comm, exa
 lemma subset_union_of_subset_left {A B C : Set} (hAB : A ⊆ B) : A ⊆ B ∪ C :=
 begin intros x hx, rw mem_union, exact or.inl (hAB hx), end
 
+lemma subset_union_of_subset_right {A B C : Set} (hAB : A ⊆ C) : A ⊆ B ∪ C :=
+begin intros x hx, rw mem_union, exact or.inr (hAB hx), end
+
 lemma union_subset_of_subset_of_subset {A B C : Set} (hA : A ⊆ C) (hB : B ⊆ C) : (A ∪ B) ⊆ C :=
 begin
   intro x, rw mem_union, rintro (hx|hx),
@@ -296,5 +299,22 @@ end
 
 lemma mem_sep' {X : Set} {p : Set → Prop} {x : Set} (xX : x ∈ X) : x ∈ {x ∈ X | p x} ↔ p x :=
 by simp only [mem_sep, xX, true_and]
+
+lemma inter_eq_of_sub {A B : Set} (AB : A ⊆ B) : A ∩ B = A :=
+begin
+  apply ext, intro x, rw mem_inter, split,
+    rintro ⟨xA, -⟩, exact xA,
+  intro xA, exact ⟨xA, AB xA⟩,
+end
+
+lemma singleton_ne_empty {x : Set} : ({x} : Set) ≠ ∅ :=
+begin
+  apply ne_empty_of_inhabited, use x, rw mem_singleton,
+end
+
+lemma sub_inter_of_sub {x a b : Set} (xa : x ⊆ a) (xb : x ⊆ b) : x ⊆ a ∩ b :=
+begin
+  intros z zx, rw mem_inter, exact ⟨xa zx, xb zx⟩,
+end
 
 end Set

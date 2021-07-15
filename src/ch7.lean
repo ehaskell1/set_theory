@@ -235,6 +235,13 @@ begin
   intros x xt, rw mem_seg at xt, exact (mem_fld_of_pair_mem_struct xt).left,
 end
 
+lemma seg_sub {A R : Set} (Rsub : R ⊆ A.prod A) {t : Set} (tA : t ∈ A) : R.seg t ⊆ A :=
+begin
+  let S : struct := ⟨A, R, Rsub⟩,
+  have tA' : t ∈ S.fld := tA,
+  exact seg_sub_fld tA',
+end
+
 local attribute [instance] classical.prop_decidable
 local attribute [instance] classical.all_definable
 
@@ -273,6 +280,28 @@ theorem replacement'' (f : Set.{u} → Set.{u}) {A : Set.{u}} :
 ∃ B : Set.{u}, ∀ {y : Set.{u}}, y ∈ B ↔ ∃ x : Set, x ∈ A ∧ y = f x :=
 begin
   apply replacement, intros x xA, exact exists_unique_eq f _,
+end
+
+noncomputable def repl_img (f : Set → Set) (A : Set) : Set := classical.some (@replacement'' f A)
+lemma mem_repl_img {f : Set → Set} {A y : Set} : y ∈ repl_img f A ↔ ∃ x : Set, x ∈ A ∧ y = f x :=
+classical.some_spec (@replacement'' f A)
+
+lemma repl_img_equin_self {X : Set}
+  {f : Set → Set} (foto : ∀ {x₁ : Set}, x₁ ∈ X → ∀ {x₂ : Set}, x₂ ∈ X → f x₁ = f x₂ → x₁ = x₂) :
+  X ≈ (repl_img f X) :=
+begin
+  let F := pair_sep_eq X (repl_img f X) f,
+  refine ⟨F, ⟨pair_sep_eq_is_fun, pair_sep_eq_dom_eq _, pair_sep_eq_ran_eq _⟩, pair_sep_eq_oto @foto⟩,
+  { intros x xX, rw mem_repl_img, exact ⟨_, xX, rfl⟩, },
+  { intro y, simp only [mem_repl_img, and_imp, exists_imp_distrib], intros x xX yx, subst yx, exact ⟨_, xX, rfl⟩, },
+end
+
+lemma repl_img_inf_of_inf {X : Set} (Xfin : ¬ X.is_finite)
+  {f : Set → Set} (foto : ∀ {x₁ : Set}, x₁ ∈ X → ∀ {x₂ : Set}, x₂ ∈ X → f x₁ = f x₂ → x₁ = x₂) :
+  ¬ (repl_img f X).is_finite :=
+begin
+  intro fin, apply Xfin, apply finite_of_equin_finite fin,
+  exact equin_symm (repl_img_equin_self @foto),
 end
 
 theorem transfinite_rec {p : Set.{u} → Set.{u} → Prop} {A R : Set.{u}} (hwell : A.well_order R)
@@ -437,6 +466,31 @@ end
 theorem transfinite_rec' {A R : Set.{u}} (hwell : A.well_order R) (f : Set.{u} → Set.{u})
 : ∃! F : Set, F.is_function ∧ F.dom = A ∧ ∀ ⦃t : Set⦄, t ∈ A → (F.fun_value t) = f (F.restrict (R.seg t)) :=
 transfinite_rec hwell (exists_unique_eq f)
+
+noncomputable def trans_rec (A R : Set) (f : Set → Set) : Set :=
+if well : A.well_order R then
+  classical.some (exists_of_exists_unique (transfinite_rec' well f))
+else
+  ∅
+
+lemma trans_rec_fun {A R : Set} (well : A.well_order R) {f : Set → Set} : (A.trans_rec R f).is_function :=
+begin
+  simp only [trans_rec, dif_pos well],
+  exact (classical.some_spec (exists_of_exists_unique (transfinite_rec' well f))).left,
+end
+
+lemma trans_rec_dom {A R : Set} (well : A.well_order R) {f : Set → Set} : (A.trans_rec R f).dom = A :=
+begin
+  simp only [trans_rec, dif_pos well],
+  exact (classical.some_spec (exists_of_exists_unique (transfinite_rec' well f))).right.left,
+end
+
+lemma trans_rec_spec {A R : Set} (well : A.well_order R) {f : Set → Set} :
+∀ ⦃t : Set⦄, t ∈ A → (A.trans_rec R f).fun_value t = f ((A.trans_rec R f).restrict (R.seg t)) :=
+begin
+  simp only [trans_rec, dif_pos well],
+  exact (classical.some_spec (exists_of_exists_unique (transfinite_rec' well f))).right.right,
+end
 
 noncomputable def eps_img_fun (R : struct) : Set :=
 if case : R.fld.well_order R.rel then
@@ -696,6 +750,26 @@ end
 
 def eps_order (A : Set) : Set := pair_sep (λ x y, x ∈ y) A A
 def eps_order_struct (A : Set) : struct := ⟨A, A.eps_order, pair_sep_sub_prod⟩
+
+theorem nat_well_order' : well_order ω nat_order :=
+⟨nat_order_lin, begin
+  intros X Xne Xsub,
+  obtain ⟨m, mX, le⟩ := nat_well_order Xsub Xne,
+  refine ⟨_, mX, _⟩, rw is_least, push_neg,
+  intros x xX, specialize le xX, rw nat_order,
+  rw pair_mem_pair_sep' (Xsub xX) (Xsub mX),
+  exact not_lt_of_le (Xsub mX) (Xsub xX) le,
+end⟩
+
+lemma nat_order_eq : nat_order = eps_order ω :=
+begin
+  apply rel_ext (pair_sep_is_rel) (pair_sep_is_rel), intros m n, simp only [pair_mem_pair_sep],
+end
+
+lemma nat_order_seg {n : Set} (nω : n ∈ ω) : nat_order.seg n = n :=
+begin
+  rw nat_order_eq, exact seg_nat nω,
+end
 
 @[simp]
 lemma eps_order_struct_fld {A : Set} : A.eps_order_struct.fld = A := rfl
@@ -1162,6 +1236,23 @@ begin
     right, exact mem_of_iso_seg βord αord δα (iso_symm iso), },
 end
 
+lemma ord_eq_of_not_lt {α : Set} (αord : α.is_ordinal) {β : Set} (βord : β.is_ordinal) (αβ : ¬ α ∈ β) (βα : ¬ β ∈ α) : α = β :=
+begin
+  apply classical.by_contradiction, intro αneβ,
+  cases ord_conn αord βord αneβ,
+    exact αβ h,
+  exact βα h,
+end 
+
+theorem ord_conn' {α : Set} (αord : α.is_ordinal) {β : Set} (βord : β.is_ordinal) : α ≤ β ∨ β ≤ α :=
+begin
+  by_cases eq : α = β,
+    left, right, exact eq,
+  cases ord_conn αord βord eq,
+    left, left, exact h,
+  right, left, exact h,
+end
+
 -- Theorem 7M part e
 theorem exists_least_ord_of_nonempty {S : Set} (Sord : ∀ {x : Set}, x ∈ S → x.is_ordinal) (SE : S ≠ ∅) :
   ∃ μ : Set, μ ∈ S ∧ S.is_least S.eps_order μ :=
@@ -1239,6 +1330,9 @@ begin
   rw [eps_order, pair_mem_pair_sep] at *,
   rcases xμ with ⟨-, -, xμ⟩, exact ⟨xX, μX, xμ⟩,
 end
+
+theorem omega_is_ord : is_ordinal ω :=
+trans_ords_is_ord @nat_is_ord nat_transitive_set
 
 -- Corollary 7N part b
 theorem zero_is_ord : is_ordinal ∅ :=
@@ -1340,7 +1434,7 @@ begin
   apply ord_mem_irrefl Ωord, rw hΩ, exact Ωord,
 end
 
-lemma ord_le_iff_lt {α : Set} (αord : α.is_ordinal) {β : Set} (βord : β.is_ordinal) : ¬ (α ≤ β) ↔ β ∈ α :=
+lemma ord_not_le_iff_lt {α : Set} (αord : α.is_ordinal) {β : Set} (βord : β.is_ordinal) : ¬ (α ≤ β) ↔ β ∈ α :=
 begin
   split,
     intro αβ, by_cases αeβ : α = β,
@@ -1353,6 +1447,11 @@ begin
   subst αβ, exfalso, exact ord_mem_irrefl αord βα,
 end
 
+lemma ord_not_lt_iff_le {α : Set} (αord : α.is_ordinal) {β : Set} (βord : β.is_ordinal) : ¬ (α ∈ β) ↔ (β ≤ α) :=
+begin
+  rw [←not_iff_not, not_not, iff.comm], exact ord_not_le_iff_lt βord αord,
+end
+
 lemma ord_eq_iff_le_and_le {α : Set} (αord : α.is_ordinal) {β : Set} (βord : β.is_ordinal) : α = β ↔ α ≤ β ∧ β ≤ α :=
 begin
   split,
@@ -1362,6 +1461,27 @@ begin
       exact βα.symm,
     exact αβ,
   exact βα.symm,
+end
+
+lemma ord_lt_of_le_of_lt {α β δ : Set} (δord : δ.is_ordinal) (αβ : α ≤ β) (βδ : β ∈ δ) : α ∈ δ :=
+begin
+  cases αβ,
+    exact ord_mem_trans δord αβ βδ,
+  subst αβ, exact βδ,
+end
+
+lemma ord_lt_of_lt_of_le {α β δ : Set} (δord : δ.is_ordinal) (αβ : α ∈ β) (βδ : β ≤ δ) : α ∈ δ :=
+begin
+  cases βδ,
+    exact ord_mem_trans δord αβ βδ,
+  subst βδ, exact αβ,
+end
+
+lemma ord_le_trans {α β δ : Set} (δord : δ.is_ordinal) (αβ : α ≤ β) (βδ : β ≤ δ) : α ≤ δ :=
+begin
+  cases αβ,
+    exact or.inl (ord_lt_of_lt_of_le δord αβ βδ),
+  subst αβ, exact βδ,
 end
 
 -- exercise 18
@@ -1383,11 +1503,50 @@ begin
   refine or.inl ⟨case, nmax, _⟩, rintro ⟨α, αe⟩, push_neg at nmax,
   have nmax' : ¬∃ (β : Set), β ∈ S.Union ∧ ∀ {γ : Set}, γ ∈ S.Union → γ ≤ β,
     push_neg, intros β, rw mem_Union, rintro ⟨γ, γS, βγ⟩,
-    rcases nmax _ γS with ⟨δ, δS, δγ⟩, rw ord_le_iff_lt (Sord δS) (Sord γS) at δγ,
-    use γ, rw [mem_Union, ord_le_iff_lt (Sord γS) (ord_of_mem_ord (Sord γS) βγ)],
+    rcases nmax _ γS with ⟨δ, δS, δγ⟩, rw ord_not_le_iff_lt (Sord δS) (Sord γS) at δγ,
+    use γ, rw [mem_Union, ord_not_le_iff_lt (Sord γS) (ord_of_mem_ord (Sord γS) βγ)],
     exact ⟨⟨_, δS, δγ⟩, βγ⟩,
   rw αe at nmax', apply nmax', refine ⟨_, self_mem_succ, λ β, assume βα, _⟩,
-  rw ←mem_succ_iff_mem, exact βα,
+  rw ←mem_succ_iff_le, exact βα,
+end
+
+lemma Union_succ_ord_eq_self {α : Set} (αord : α.is_ordinal) : α.succ.Union = α :=
+begin
+  apply ext, simp only [mem_Union, exists_prop, mem_succ_iff_le], intro β, split,
+    rintro ⟨γ, γα, βγ⟩, exact ord_lt_of_lt_of_le αord βγ γα,
+  intro βα, exact ⟨_, or.inr rfl, βα⟩,
+end
+
+noncomputable def rec_fun' (f : Set → Set) (base : Set) : Set :=
+trans_rec ω nat_order (λ g, if g = ∅ then base else f (g.fun_value g.dom.Union))
+
+lemma rec_fun_fun' {f : Set → Set} {base : Set} : (rec_fun' f base).is_function :=
+trans_rec_fun nat_well_order'
+
+lemma rec_fun_dom' {f : Set → Set} {base : Set} : (rec_fun' f base).dom = ω :=
+trans_rec_dom nat_well_order'
+
+lemma rec_fun_base' {f : Set → Set} {base : Set} : (rec_fun' f base).fun_value ∅ = base :=
+by rw [rec_fun', trans_rec_spec nat_well_order' zero_nat, nat_order_seg zero_nat, restrict_empty, if_pos rfl]
+
+lemma rec_fun_ind' {f : Set → Set} {base n : Set} (nω : n ∈ ω) :
+  (rec_fun' f base).fun_value n.succ = f ((rec_fun' f base).fun_value n) :=
+begin
+  have nω' := nat_induct.succ_closed nω,
+  have nω'' := subset_nat_of_mem_nat nω',
+  rw [rec_fun', trans_rec_spec nat_well_order' nω', nat_order_seg nω'],
+  have hdom : ((rec_fun' f base).restrict n.succ).dom = n.succ,
+    apply restrict_dom, rw rec_fun_dom', exact nω'',
+  have ne : (rec_fun' f base).restrict n.succ ≠ ∅, apply ne_empty_of_inhabited,
+    use n.pair ((rec_fun' f base).fun_value n), rw pair_mem_restrict,
+    refine ⟨fun_value_def''' rec_fun_fun' _ rfl, self_mem_succ⟩,
+    rw rec_fun_dom', exact nω,
+  rw rec_fun' at ne hdom, rw [if_neg ne, hdom],
+  have h : n.succ.Union ∈ n.succ,
+    rw Union_succ_ord_eq_self (nat_is_ord nω), exact self_mem_succ,
+  rw [←@rec_fun_dom' f base, rec_fun'] at nω'',
+  rw [←rec_fun', restrict_fun_value rec_fun_fun' nω'' h, Union_succ_ord_eq_self (nat_is_ord nω)],
+
 end
 
 -- Hartogs' Theorem
@@ -1434,11 +1593,13 @@ begin
   simp only [memα, and_iff_left_iff_imp], exact all _,
 end
 
--- Well-Ordering Theorem
-theorem exists_well_order {A : Set} : ∃ R : Set, A.well_order R :=
+def WO : Prop := ∀ A : Set, ∃ R : Set, A.well_order R
+
+theorem choice_equiv_3_WO : Axiom_of_choice_III.{u} → WO.{u} :=
 begin
+  intros ax3 A,
   obtain ⟨α, αord, ndom⟩ := @exists_large_ord A,
-  obtain ⟨G, Gfun, Gdom, Gspec⟩ := @ax_ch_3 A,
+  obtain ⟨G, Gfun, Gdom, Gspec⟩ := @ax3 A,
   obtain ⟨e, eA⟩ := univ_not_set' A,
   let rec := λ f : Set, if A \ f.ran = ∅ then e else G.fun_value (A \ f.ran),
   obtain ⟨F, ⟨Ffun, Fdom, Fspec⟩, -⟩ := transfinite_rec' (ordinal_well_ordered αord) rec,
@@ -1517,10 +1678,13 @@ begin
   rw ←T3F_b (restrict_is_rel), exact restrict_is_function Ffun,
 end
 
+-- Well-Ordering Theorem
+theorem exists_well_order : WO := choice_equiv_3_WO @ax_ch_3
+
 -- Numeration Theorem
 theorem exists_equin_ordinal {A : Set} : ∃ α : Set, α.is_ordinal ∧ A ≈ α :=
 begin
-  obtain ⟨R, Rwell⟩ := @exists_well_order A,
+  obtain ⟨R, Rwell⟩ := exists_well_order A,
   let R' : struct := ⟨A, R, Rwell.lin.rel⟩,
   have Rwell' : R'.fld.well_order R'.rel := Rwell,
   refine ⟨eps_img R', ⟨_, Rwell', rfl⟩, _⟩,
@@ -1546,9 +1710,9 @@ begin
     have βX : β ∈ X, rw mem_sep, exact ⟨βα, equin'⟩,
     rw [is_least, eps_order] at le, push_neg at le,
     specialize le _ βX, rw pair_mem_pair_sep' βX μX at le,
-    rw ←ord_le_iff_lt (Xord _ μX) βord at le, push_neg at le, exact le,
+    rw ←ord_not_le_iff_lt (Xord _ μX) βord at le, push_neg at le, exact le,
   apply classical.by_contradiction, intro μβ,
-  rw ord_le_iff_lt (Xord _ μX) βord at μβ,
+  rw ord_not_le_iff_lt (Xord _ μX) βord at μβ,
   rw mem_sep at μX, apply βα, 
   exact ord_mem_trans (succ_ord_of_ord αord) μβ μX.left,
 end
@@ -1593,6 +1757,91 @@ theorem card_of_cardinal_eq_self {κ : Set} (h : κ.is_cardinal) : κ.card = κ 
 begin
   rcases h with ⟨K, Kcard⟩, nth_rewrite 1 ←Kcard, rw card_equiv,
   rw ←Kcard, exact equin_symm equin_card_of_self,
+end
+
+lemma eq_card {A α : Set} (αord : α.is_ordinal) (equin : A ≈ α) (least : ∀ {β : Set}, β.is_ordinal → A ≈ β → α ≤ β) : α = A.card :=
+begin
+  rw ord_eq_iff_le_and_le αord card_is_ordinal,
+  exact ⟨least card_is_ordinal equin_card_of_self, card_least αord equin⟩,
+end
+
+-- parts 5-6 of theorem 6M
+def is_chain (B : Set) : Prop := ∀ ⦃C : Set⦄, C ∈ B → ∀ ⦃D : Set⦄, D ∈ B → C ⊆ D ∨ D ⊆ C
+
+-- Cardinal comparabilityd
+def Axiom_of_choice_V : Prop := ∀ C D : Set, C ≼ D ∨ D ≼ C
+-- Zorn's lemma
+def Axiom_of_choice_VI : Prop := ∀ 𝓐 : Set, (∀ 𝓑 : Set, 𝓑.is_chain → 𝓑 ⊆ 𝓐 → 𝓑.Union ∈ 𝓐) → ∃ M, M ∈ 𝓐 ∧ ∀ N ∈ 𝓐, N ≠ M → ¬(M ⊆ N)
+
+theorem choice_equiv_5_WO : Axiom_of_choice_V.{u} → WO.{u} :=
+begin
+  intros ax_ch_5 A,
+  obtain ⟨α, αord, nd⟩ := @exists_large_ord A,
+  cases ax_ch_5 α A with αA Aα,
+    exfalso, exact nd αA,
+  rcases Aα with ⟨f, finto, foto⟩, use A.fun_order α.eps_order f,
+  exact well_order_from_fun finto foto (ordinal_well_ordered αord),
+end
+
+theorem choice_equiv_WO_6 : WO.{u} → Axiom_of_choice_VI.{u} :=
+begin
+  intros wo 𝓐 closed,
+  obtain ⟨R, Rwell⟩ := wo 𝓐,
+  have diffseg : ∀ {A : Set}, A ∈ 𝓐 → 𝓐 \ R.seg A ≠ ∅,
+    intros A A𝓐,
+    apply diff_ne_empty_of_ne (seg_sub Rwell.lin.rel A𝓐),
+    intro segA𝓐, rw [←segA𝓐, mem_seg] at A𝓐,
+    exact Rwell.lin.irrefl A𝓐,
+  let next : Set → Set := λ X, if case : 𝓐 \ X = ∅ then ∅ else classical.some (Rwell.well case subset_diff),
+  have next_val : ∀ {A : Set}, A ∈ 𝓐 → next (R.seg A) = A,
+    intros A A𝓐, simp only [next, dif_neg (diffseg A𝓐)],
+    obtain ⟨mem, le⟩ := classical.some_spec (Rwell.well (diffseg A𝓐) subset_diff),
+    rw mem_diff at mem,
+    apply classical.by_contradiction, intro neq, cases Rwell.lin.conn mem.left A𝓐 neq,
+      apply mem.right, rw mem_seg, exact h,
+    apply le, use A, rw [mem_diff, mem_seg], refine ⟨⟨A𝓐, _⟩, h⟩, apply Rwell.lin.irrefl,
+  let f : Set → Set := λ g, if ∀ B : Set, B ∈ g.dom → g.fun_value B = one → B ⊆ next g.dom then one else ∅,
+  obtain ⟨F, ⟨Ffun, Fdom, Fspec⟩, -⟩ := transfinite_rec' Rwell f,
+  have segsub : ∀ {A : Set}, A ∈ 𝓐 → R.seg A ⊆ F.dom, rw Fdom,
+    intros A A𝓐, exact seg_sub Rwell.lin.rel A𝓐,
+  have Fval : ∀ {A : Set}, A ∈ 𝓐 → (∀ B : Set, B.pair A ∈ R → F.fun_value B = one → B ⊆ A) → F.fun_value A = one,
+    intros A A𝓐 case,
+    have case' : ∀ B : Set, B ∈ (F.restrict (R.seg A)).dom → (F.restrict (R.seg A)).fun_value B = one → B ⊆ next (F.restrict (R.seg A)).dom,
+      rw [restrict_dom (segsub A𝓐), next_val A𝓐], intros B BAR,
+      rw restrict_fun_value Ffun (segsub A𝓐) BAR, rw mem_seg at BAR,
+      intro FB, exact case _ BAR FB,
+    simp only [Fspec A𝓐, f], rw if_pos case',
+  have Fval' : ∀ {A : Set}, A ∈ 𝓐 → ¬ (∀ B : Set, B.pair A ∈ R → F.fun_value B = one → B ⊆ A) → F.fun_value A = ∅,
+    intros A A𝓐 case,
+    have case' : ¬ ∀ B : Set, B ∈ (F.restrict (R.seg A)).dom → (F.restrict (R.seg A)).fun_value B = one → B ⊆ next (F.restrict (R.seg A)).dom,
+      rw [restrict_dom (segsub A𝓐), next_val A𝓐], intro case', apply case,
+      intros B BA FB, rw ←mem_seg at BA, apply case' _ BA,
+      rw restrict_fun_value Ffun (segsub A𝓐) BA, exact FB,
+    simp only [Fspec A𝓐, f], rw if_neg case',
+  have Fran : F.ran ⊆ two, apply ran_sub Ffun, intros A A𝓐, rw Fdom at A𝓐, rw mem_two,
+    by_cases case : ∀ B : Set, B.pair A ∈ R → F.fun_value B = one → B ⊆ A,
+      right, exact Fval A𝓐 case,
+    left, exact Fval' A𝓐 case,
+  let 𝓒 := {A ∈ 𝓐 | F.fun_value A = one},
+  have mem𝓒 : ∀ {A : Set}, A ∈ 𝓐 → (A ∈ 𝓒 ↔ ∀ B : Set, B.pair A ∈ R → B ∈ 𝓒 → B ⊆ A),
+    intros A A𝓐, simp only [mem_sep], split,
+      rintros ⟨-, FA⟩ B BAR ⟨B𝓐, FB⟩, apply @classical.by_contradiction (B ⊆ A), intro BA,
+      apply zero_ne_one, symmetry, rw ←FA, apply Fval' A𝓐, push_neg,
+      exact ⟨_, BAR, FB, BA⟩,
+    intro h, refine ⟨A𝓐, Fval A𝓐 _⟩, intros B BAR FB, refine h _ BAR ⟨_, FB⟩,
+    replace BAR := Rwell.lin.rel BAR, rw pair_mem_prod at BAR, exact BAR.left,
+  use 𝓒.Union, split,
+    refine closed _ _ sep_subset, intros A A𝓒 B B𝓒,
+    have A𝓐 : A ∈ 𝓐, rw mem_sep at A𝓒, exact A𝓒.left,
+    have B𝓐 : B ∈ 𝓐, rw mem_sep at B𝓒, exact B𝓒.left,
+    by_cases case : A = B,
+      left, subst case, exact subset_self,
+    cases Rwell.lin.conn A𝓐 B𝓐 case with AB BA,
+      rw mem𝓒 B𝓐 at B𝓒, left, exact B𝓒 _ AB A𝓒,
+    rw mem𝓒 A𝓐 at A𝓒, right, exact A𝓒 _ BA B𝓒,
+  intros D D𝓐 Dne𝓒 𝓒D, apply Dne𝓒, rw eq_iff_subset_and_subset, refine ⟨_, 𝓒D⟩,
+  suffices D𝓒 : D ∈ 𝓒, exact subset_Union D𝓒,
+  rw mem𝓒 D𝓐, intros B BD B𝓒, exact subset_trans (subset_Union B𝓒) 𝓒D,
 end
 
 end Set

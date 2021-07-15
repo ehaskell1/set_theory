@@ -104,7 +104,7 @@ begin
       { have hCe : C = (C ∩ k) ∪ {k}, apply ext, simp only [mem_union, mem_inter, mem_singleton], intro x, split,
         { intro hxC,
           have hxk : x ∈ k.succ := hCk.left hxC,
-          rw [mem_succ_iff_mem, le_iff] at hxk, cases hxk,
+          rw [mem_succ_iff_le, le_iff] at hxk, cases hxk,
           { left, exact ⟨hxC, hxk⟩, },
           { right, exact hxk, }, },
         { rintro (⟨hxC, hxk⟩|hxk),
@@ -113,7 +113,7 @@ begin
         have hCkp : C ∩ k ⊂ k, refine ⟨λ x hx, _, _⟩,
           { rw mem_inter at hx, exact hx.right, },
           { intro hCke, apply hCk.right, rw eq_iff_subset_and_subset, refine ⟨hCk.left, λ x hxk, _⟩,
-            rw [mem_succ_iff_mem, le_iff] at hxk, cases hxk,
+            rw [mem_succ_iff_le, le_iff] at hxk, cases hxk,
             { rw ←hCke at hxk, rw mem_inter at hxk, exact hxk.left, },
             { rw ←hxk at hkmC, exact hkmC, }, },
         specialize hi hCkp, rcases hi with ⟨m, hmk, f, fonto, foto⟩,
@@ -121,7 +121,7 @@ begin
         have ginto : g.into_fun C m.succ, rw fun_def_equiv,
           have hf : (C ∩ k).is_func m f, rw ←fun_def_equiv, exact into_of_onto fonto,
           refine ⟨λ p hp, _, λ x hxC, _⟩,
-          { simp only [mem_prod, exists_prop, mem_succ_iff_mem, le_iff], rw [mem_union, mem_singleton] at hp,
+          { simp only [mem_prod, exists_prop, mem_succ_iff_le, le_iff], rw [mem_union, mem_singleton] at hp,
             cases hp,
             { replace hp := hf.left hp, simp only [mem_prod, exists_prop] at hp,
               rcases hp with ⟨x, hx, y, hy, hp⟩, rw mem_inter at hx, exact ⟨_, hx.left, _, or.inl hy, hp⟩, },
@@ -147,11 +147,11 @@ begin
         exact ((mem_nat_iff hk).mp hmk).left, exact hk, },
       { have hCpk : C ⊂ k, refine ⟨λ x hxC, _, heCk⟩,
           have hxk : x ∈ k.succ := hCk.left hxC,
-          rw [mem_succ_iff_mem, le_iff] at hxk, cases hxk,
+          rw [mem_succ_iff_le, le_iff] at hxk, cases hxk,
           { exact hxk, },
           { exfalso, rw hxk at hxC, exact hkmC hxC, },
         specialize hi hCpk, rcases hi with ⟨m, hmk, hCm⟩,
-        simp only [mem_succ_iff_mem, le_iff], exact ⟨_, or.inl hmk, hCm⟩, }, }, },
+        simp only [mem_succ_iff_le, le_iff], exact ⟨_, or.inl hmk, hCm⟩, }, }, },
 end
 
 -- Corollary 6G
@@ -175,6 +175,9 @@ begin
     have hm : m ∈ (ω : Set.{u}) := ((mem_nat_iff hn).mp hmn).left,
     exact ⟨_, hm, equin_trans hBeq hfimgeqm⟩, },
 end
+
+lemma inf_of_sup_inf {X : Set} (Xinf : ¬ X.is_finite) {Y : Set} (XY : X ⊆ Y) : ¬ Y.is_finite :=
+λ Yfin, Xinf (subset_finite_of_finite Yfin XY)
 
 -- All of the excericises at the end of the section on finite sets are worth doing
 
@@ -821,6 +824,8 @@ begin
   intro hfin, apply hA, exact finite_of_dominated_by_finite hfin hAB,
 end
 
+local attribute [instance] classical.prop_decidable
+
 lemma zero_card_le {κ : Set} (hκ : κ.is_cardinal) : card_le ∅ κ :=
 begin
   rcases hκ with ⟨K, hK⟩, rw [←hK, ←card_nat zero_nat], apply card_le_of_subset,
@@ -833,6 +838,9 @@ begin
     apply card_le_of_subset, exact subset_nat_of_mem_nat hn,
   intro h, apply nat_infinite, rw card_equiv at h, exact ⟨_, hn, equin_symm h⟩,
 end
+
+lemma finite_card_lt_aleph_null' {X : Set} (Xfin : X.is_finite) : X.card.card_lt ℵ₀ :=
+finite_card_lt_aleph_null ⟨_, Xfin, rfl⟩
 
 lemma finite_card_le_iff_le {m : Set} (hm : m.finite_cardinal) {n : Set} (hn : n.finite_cardinal) : m.card_le n ↔ m ≤ n :=
 begin
@@ -874,8 +882,6 @@ begin
   rcases hκμ with ⟨f, finto, foto⟩, rcases hμν with ⟨g, ginto, goto⟩,
   exact ⟨g.comp f, comp_into_fun finto ginto, comp_one_to_one goto foto⟩,
 end
-
-local attribute [instance] classical.prop_decidable
 
 -- Schröer-Bernstein Theorem part a
 lemma equin_of_dom_of_dom {A B : Set} (hAB : A ≼ B) (hBA : B ≼ A) : A ≈ B :=
@@ -962,6 +968,20 @@ begin
   apply equin_of_dom_of_dom (hκμ hK hM) (hμκ hM hK),
 end
 
+lemma card_lt_trans {κ : Set} (hκ : κ.is_cardinal) {μ : Set} (hμ : μ.is_cardinal) (hκμ : κ.card_lt μ) {ν : Set} (hμν : μ.card_lt ν) : κ.card_lt ν :=
+begin
+  rcases hκμ with ⟨κlμ, κeμ⟩, rcases hμν with ⟨μlν, μeν⟩,
+  refine ⟨card_le_trans hμ κlμ μlν, λ κeν, _⟩,
+  subst κeν, apply κeμ, exact card_eq_of_le_of_le hκ hμ κlμ μlν,
+end
+
+lemma card_lt_of_le_of_lt {κ : Set} (κcard : κ.is_cardinal) {μ : Set} (μcard : μ.is_cardinal) (κμ : κ.card_le μ) {ν : Set} (μν : μ.card_lt ν) : κ.card_lt ν :=
+begin
+  rw card_le_iff at κμ, cases κμ,
+    exact card_lt_trans κcard μcard κμ μν,
+  subst κμ, exact μν,
+end
+
 -- Too lazy to do all of theorem 6L
 
 -- Theorem 6L part a
@@ -1028,14 +1048,6 @@ begin
   exact dominated_sub (subset_Union_of_mem hBK),
 end
 
-def is_chain (B : Set) : Prop := ∀ ⦃C : Set⦄, C ∈ B → ∀ ⦃D : Set⦄, D ∈ B → C ⊆ D ∨ D ⊆ C
-
--- some of these to be proved at end of chapter 7
--- Cardinal comparability
-def Axiom_of_choice_V : Prop := ∀ C D : Set, C ≼ D ∨ D ≼ C
--- Zordn's lemma
-def Axiom_of_choice_VI : Prop := ∀ 𝓐 : Set, (∀ 𝓑 : Set, 𝓑.is_chain → 𝓑 ⊆ 𝓐 → 𝓑.Union ∈ 𝓐) → ∃ M, M ∈ 𝓐 ∧ ∀ N ∈ 𝓐, N ≠ M → ¬(M ⊆ N)
-
 lemma Union_chain_is_function {𝓑 : Set} (hch : 𝓑.is_chain) (hf : ∀ {f : Set}, f ∈ 𝓑 → f.is_function) : 𝓑.Union.is_function :=
 begin
   rw is_function_iff, split,
@@ -1058,8 +1070,6 @@ begin
   replace hB𝓑 := hf hB𝓑, rw one_to_one_iff at hB𝓑,
   exact hB𝓑 hxyB (hch hxyB'),
 end
-
--- parts 5-6 of theorem 6M
 
 theorem choice_equiv_6_1 : Axiom_of_choice_VI.{u} → Axiom_of_choice_I.{u} :=
 begin
@@ -1132,6 +1142,37 @@ begin
     have hcdF' : c.pair d ∈ F', rw [mem_union, mem_singleton], right, refl,
     rw he at hcdF', apply hnc, rw mem_dom, exact ⟨_, hcdF'⟩,
   exact subset_union_left,
+end
+
+-- Theorem 6M completed
+theorem choice_equiv_all : list.tfae [
+  Axiom_of_choice_I.{u},
+  Axiom_of_choice_II.{u},
+  Axiom_of_choice_III.{u},
+  Axiom_of_choice_IV.{u},
+  Axiom_of_choice_V.{u},
+  Axiom_of_choice_VI.{u},
+  WO.{u}] :=
+begin
+  tfae_have : 1 → 2, refine list.tfae_prf choice_equiv _ _, finish, finish,
+  tfae_have : 2 → 4, refine list.tfae_prf choice_equiv _ _, finish, finish,
+  tfae_have : 4 → 3, refine list.tfae_prf choice_equiv _ _, finish, finish,
+  tfae_have : 3 → 1, refine list.tfae_prf choice_equiv _ _, finish, finish,
+  tfae_have : 6 → 1, exact choice_equiv_6_1,
+  tfae_have : 6 → 5, exact choice_equiv_6_5,
+  tfae_have : 3 → 7, exact choice_equiv_3_WO,
+  tfae_have : 5 → 7, exact choice_equiv_5_WO,
+  tfae_have : 7 → 6, exact choice_equiv_WO_6,
+  tfae_finish,
+end
+
+lemma ax_ch_6 : Axiom_of_choice_VI :=
+begin
+  refine list.tfae_prf choice_equiv_all _ _ @ax_ch_3, finish, finish,
+end
+lemma ax_ch_5 : Axiom_of_choice_V :=
+begin
+  refine list.tfae_prf choice_equiv_all _ _ @ax_ch_3, finish, finish,
 end
 
 lemma dominates_of_onto_fun {A B : Set} (he : ∃ f : Set, f.onto_fun A B) : B.dominated A :=
@@ -1253,6 +1294,15 @@ begin
   intro hf, exact finite_card_lt_aleph_null hf,
 end
 
+lemma card_inf_of_ge_inf {κ : Set} (κcard : κ.is_cardinal) (κfin : ¬ κ.finite_cardinal)
+  {μ : Set} (μcard : μ.is_cardinal) (κμ : κ.card_le μ) : ¬ μ.finite_cardinal :=
+begin
+  intro μfin, apply κfin,
+  rw ←card_lt_aleph_null_iff_finite κcard,
+  rw ←card_lt_aleph_null_iff_finite μcard at μfin,
+  exact card_lt_of_le_of_lt κcard μcard κμ μfin,
+end
+
 -- Corollary 6G, different proof
 theorem subset_finite_of_finite' {A : Set.{u}} (hA : A.is_finite) {B : Set} (hBA : B ⊆ A) : B.is_finite :=
 begin
@@ -1348,10 +1398,6 @@ end
 
 lemma countable_iff {A : Set} : A.countable ↔ A.is_finite ∨ A.card = ℵ₀  :=
 by rw [←countable_card, card_le_iff, card_lt_aleph_null_iff_finite ⟨_, rfl⟩, card_finite_iff_finite]
-
--- to prove at end of chapter 7
-lemma ax_ch_6 : Axiom_of_choice_VI := sorry
-lemma ax_ch_5 : Axiom_of_choice_V := sorry
 
 lemma card_lt_of_not_le {K M : Set} (h : ¬ K.card.card_le M.card) : M.card.card_lt K.card :=
 begin
@@ -1629,44 +1675,6 @@ begin
     exact card_exp_le_of_le hκ (exp_cardinal two_card hκ) (card_le_iff.mpr (or.inl (card_lt_exp hκ))) hκ,
   refine card_exp_le_of_le two_card hκ (finite_le_infinite' two_card _ hκ hinf) hκ,
   rw finite_cardinal_iff_nat, exact two_nat,
-end
-
--- chapter 7 exercise 20
-lemma finite_of_well_orderings {A R : Set} (Rwell : A.well_order R) (Rwell' : A.well_order R.inv) : A.is_finite :=
-begin
-  have eg : ∀ {X : Set}, X ≠ ∅ → X ⊆ A → ∃ m : Set, m ∈ X ∧ ∀ {x : Set}, x ∈ X → R.lin_le x m,
-    intros X XE XA, obtain ⟨m, mX, ge⟩ := Rwell'.well XE XA,
-    rw [is_least] at ge, push_neg at ge, refine ⟨_, mX, λ x, assume xX, _⟩,
-    rw le_iff_not_lt Rwell.lin (XA xX) (XA mX),
-    specialize ge _ xX, rw pair_mem_inv at ge, exact ge,
-  let closed := λ X : Set, ∀ {y : Set}, y ∈ X → ∀ {x : Set}, x.pair y ∈ R → x ∈ X,
-  have un : ∀ {X : Set}, X ≠ ∅ → X ⊆ A → closed X → ∃ m : Set, m ∈ X ∧ X = (R.seg m) ∪ {m},
-    intros X XE XA cl, obtain ⟨m, mX, ge⟩ := eg XE XA, refine ⟨m, mX, _⟩,
-    apply ext, intro x, rw [mem_union, mem_singleton, mem_seg, ←lin_le], split,
-      exact ge, rintro (xm|xm),
-        exact cl mX xm,
-      subst xm, exact mX,
-  have segcl : ∀ {t : Set}, t ∈ A → closed (R.seg t), intros t tA y yt x xy,
-    rw mem_seg at *, exact Rwell.lin.trans xy yt,
-  have segsub : ∀ {t : Set}, t ∈ A → R.seg t ⊆ A, intros t tA x xt,
-    rw mem_seg at xt, replace xt := Rwell.lin.rel xt, rw pair_mem_prod at xt,
-    exact xt.left,
-  have Acl : closed A, intros y yA x xy, replace xy := Rwell.lin.rel xy,
-    rw pair_mem_prod at xy, exact xy.left,
-  let B := {x ∈ A | (R.seg x).is_finite},
-  have BA : B = A, apply transfinite_ind Rwell sep_subset,
-    intros x xA ind, rw mem_sep,
-    by_cases se : R.seg x = ∅,
-      rw [se, ←card_finite_iff_finite, card_nat zero_nat, finite_cardinal_iff_nat],
-      exact ⟨xA, zero_nat⟩,
-    obtain ⟨m, mx, eq⟩ := un se (segsub xA) (@segcl _ xA), rw eq,
-    specialize ind mx, rw mem_sep at ind,
-    exact ⟨xA, union_finite_of_finite ind.right singleton_finite⟩,
-  by_cases Ae : A = ∅,
-    subst Ae, rw [←card_finite_iff_finite, card_nat zero_nat, finite_cardinal_iff_nat],
-    exact zero_nat,
-  obtain ⟨m, mx, eq⟩ := un Ae subset_self @Acl, rw eq, rw [←BA, mem_sep] at mx,
-  exact union_finite_of_finite mx.right singleton_finite,
 end
 
 end Set

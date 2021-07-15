@@ -364,6 +364,11 @@ begin
   { rintro ⟨x, hx, he⟩, rw he, exact fun_value_def'' hf hx, },
 end
 
+lemma ran_sub {F : Set} (hf : F.is_function) {A : Set} (h : ∀ x : Set, x ∈ F.dom → F.fun_value x ∈ A) : F.ran ⊆ A :=
+begin
+  intro y, rw mem_ran_iff hf, rintro ⟨x, xdom, Fx⟩, subst Fx, exact h _ xdom,
+end
+
 def into_fun (F A B : Set) : Prop := F.is_function ∧ F.dom = A ∧ F.ran ⊆ B
 
 lemma fun_def_equiv {F A B : Set} : F.into_fun A B ↔ A.is_func B F :=
@@ -551,6 +556,12 @@ begin
   simp, split,
   { rintro ⟨a, b, he, hp, hm⟩, rw he, rw (pair_inj he).left, finish, },
   { rintro ⟨hp, hm⟩, exact ⟨_, _, rfl, hp, hm⟩, },
+end
+
+lemma restrict_empty {F : Set} : F.restrict ∅ = ∅ :=
+begin
+  simp only [rel_eq_empty restrict_is_rel, pair_mem_restrict], rintros x y ⟨-, h⟩,
+  exact mem_empty _ h,
 end
 
 lemma restrict_combine {F : Set} (hf : F.is_rel) {A B : Set} (hd : A ∪ B = F.dom) : F.restrict A ∪ F.restrict B = F :=
