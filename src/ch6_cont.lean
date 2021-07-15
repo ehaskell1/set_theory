@@ -22,8 +22,6 @@ begin
   rintro ⟨n, hn, he⟩, apply nat_infinite, rw [←card_nat hn, card_equiv] at he, exact ⟨_, hn, he⟩,
 end
 
-notation `ℵ₀` := card ω
-
 lemma not_empty_of_card_not_empty {κ : Set} (hnz : κ ≠ ∅) {X : Set} (he : X.card = κ) : X ≠ ∅ :=
 begin
   intro hee, rw [hee, card_nat (nat_induct.zero)] at he, apply hnz, rw he,
@@ -89,7 +87,7 @@ begin
   { rintro hX, refine ⟨X, ⟨X, hX, equin_refl⟩, card_nat hX⟩, },
 end
 
-theorem aleph_null_infinite_cardinal : ¬ finite_cardinal ℵ₀ :=
+theorem aleph_null_infinite_cardinal : ¬ finite_cardinal (card ω) :=
 begin
   rintro ⟨X, ⟨n, hn, hXn⟩, hc⟩, apply nat_infinite, rw [card_equiv] at hc, refine ⟨_, hn, equin_trans (equin_symm hc) hXn⟩,
 end
@@ -331,7 +329,7 @@ begin
   rw ←card_exp_spec hK hM, exact ⟨_, rfl⟩,
 end
 
-theorem aleph_mul_aleph_eq_aleph : card_mul ℵ₀ ℵ₀ = ℵ₀ :=
+theorem aleph_mul_aleph_eq_aleph : card_mul (card ω) (card ω) = card ω :=
 begin
   rw [←card_mul_spec rfl rfl, card_equiv], exact nat_prod_nat_equin_nat,
 end
@@ -832,14 +830,14 @@ begin
   intros z hz, exfalso, exact mem_empty _ hz,
 end
 
-lemma finite_card_lt_aleph_null {n : Set} (hn : n.finite_cardinal) : n.card_lt ℵ₀ :=
+lemma finite_card_lt_aleph_null {n : Set} (hn : n.finite_cardinal) : n.card_lt (card ω) :=
 begin
   rw finite_cardinal_iff_nat at hn, rw [←card_nat hn, card_lt], split,
     apply card_le_of_subset, exact subset_nat_of_mem_nat hn,
   intro h, apply nat_infinite, rw card_equiv at h, exact ⟨_, hn, equin_symm h⟩,
 end
 
-lemma finite_card_lt_aleph_null' {X : Set} (Xfin : X.is_finite) : X.card.card_lt ℵ₀ :=
+lemma finite_card_lt_aleph_null' {X : Set} (Xfin : X.is_finite) : X.card.card_lt (card ω) :=
 finite_card_lt_aleph_null ⟨_, Xfin, rfl⟩
 
 lemma finite_card_le_iff_le {m : Set} (hm : m.finite_cardinal) {n : Set} (hn : n.finite_cardinal) : m.card_le n ↔ m ≤ n :=
@@ -1266,7 +1264,7 @@ begin
 end
 
 -- Theorem 6N part b
-theorem aleph_null_least_infinite_cardinal {κ : Set} (hκ : κ.is_cardinal) (hinf : ¬ κ.finite_cardinal) : card_le ℵ₀ κ :=
+theorem aleph_null_least_infinite_cardinal {κ : Set} (hκ : κ.is_cardinal) (hinf : ¬ κ.finite_cardinal) : card_le (card ω) κ :=
 begin
   rcases hκ with ⟨K, hK⟩, rw ←hK, rw card_le_iff_equin',
   apply omega_least_infinite_set, intro hf, exact hinf ⟨_, hf, hK⟩,
@@ -1275,7 +1273,7 @@ end
 lemma equin_omega_of_inf_subset {A : Set} (hA : ¬ A.is_finite) (hA' : A ⊆ ω) : A ≈ ω :=
 equin_of_dom_of_dom (dominated_sub hA') (omega_least_infinite_set hA)
 
-lemma exists_sub_card_alpeh_null_of_inf {κ : Set} (hκ : ¬ κ.finite_cardinal) {B : Set} (hB : B.card = κ) : ∃ A : Set, A ⊆ B ∧ A.card = ℵ₀ :=
+lemma exists_sub_card_alpeh_null_of_inf {κ : Set} (hκ : ¬ κ.finite_cardinal) {B : Set} (hB : B.card = κ) : ∃ A : Set, A ⊆ B ∧ A.card = card ω :=
 begin
   have Binf : ¬ B.is_finite, intro fin, apply hκ, exact ⟨_, fin, hB⟩,
   have h := omega_least_infinite_set Binf,
@@ -1284,7 +1282,7 @@ begin
   exact ⟨_, hAB, hA⟩,
 end
 
-lemma card_lt_aleph_null_iff_finite {κ : Set} (hκ : κ.is_cardinal) : κ.card_lt ℵ₀ ↔ κ.finite_cardinal :=
+lemma card_lt_aleph_null_iff_finite {κ : Set} (hκ : κ.is_cardinal) : κ.card_lt (card ω) ↔ κ.finite_cardinal :=
 begin
   split,
     intros hlt, apply classical.by_contradiction, intro hnf, apply hlt.right,
@@ -1308,7 +1306,7 @@ theorem subset_finite_of_finite' {A : Set.{u}} (hA : A.is_finite) {B : Set} (hBA
 begin
   rcases hA with ⟨n, hn, hAn⟩,
   have hBn : B.card.card_le n.card, rw ←card_equiv at hAn, rw ←hAn, rw card_le_iff_equin', exact dominated_sub hBA,
-  have hnal : n.card.card_lt ℵ₀, apply finite_card_lt_aleph_null, exact ⟨_, nat_finite hn, rfl⟩,
+  have hnal : n.card.card_lt (card ω), apply finite_card_lt_aleph_null, exact ⟨_, nat_finite hn, rfl⟩,
   refine one_finite_all_finite _ rfl, rw ←card_lt_aleph_null_iff_finite ⟨_, rfl⟩, split,
     exact card_le_trans ⟨n, rfl⟩ hBn hnal.left,
   intro he, apply hnal.right, apply card_eq_of_le_of_le ⟨_, rfl⟩ ⟨_, rfl⟩ hnal.left,
@@ -1391,12 +1389,12 @@ end
 
 def countable (A : Set) : Prop := A ≼ ω
 
-lemma countable_card {A : Set} : A.card.card_le ℵ₀ ↔ A.countable :=
+lemma countable_card {A : Set} : A.card.card_le (card ω) ↔ A.countable :=
 begin
   rw [card_le_iff_equin', countable],
 end
 
-lemma countable_iff {A : Set} : A.countable ↔ A.is_finite ∨ A.card = ℵ₀  :=
+lemma countable_iff {A : Set} : A.countable ↔ A.is_finite ∨ A.card = card ω  :=
 by rw [←countable_card, card_le_iff, card_lt_aleph_null_iff_finite ⟨_, rfl⟩, card_finite_iff_finite]
 
 lemma card_lt_of_not_le {K M : Set} (h : ¬ K.card.card_le M.card) : M.card.card_lt K.card :=
@@ -1412,7 +1410,7 @@ end
 lemma nat_le_inf {n : Set} (hn : n ∈ ω) {K : Set} (hK : ¬ K.is_finite) : n.card_le K.card :=
 begin
   apply card_le_trans ⟨ω, rfl⟩,
-    have h : n.card_lt ℵ₀, rw card_lt_aleph_null_iff_finite ⟨_, card_nat hn⟩,
+    have h : n.card_lt (card ω), rw card_lt_aleph_null_iff_finite ⟨_, card_nat hn⟩,
       rw finite_cardinal_iff_nat, exact hn,
     exact h.left,
   apply aleph_null_least_infinite_cardinal ⟨_, rfl⟩, rw card_finite_iff_finite, exact hK,
@@ -1496,7 +1494,6 @@ begin
           replace ha₁ :=  union_subset_of_subset_of_subset (ran_subset_of_subset hf) subset_self ha₁,
           replace ha₂ :=  union_subset_of_subset_of_subset (ran_subset_of_subset hf) subset_self ha₂,
           rw fonto.right.right at ha₁ ha₂, exact ⟨ha₁, ha₂⟩,
-
         rintro ⟨a₁, ⟨f₁, ha₁, hf₁⟩, a₂, ⟨f₂, ha₂, hf₂⟩, he⟩, subst he,
         replace ha₁ : a₁ ∈ f₁.ran ∪ f₂.ran, rw mem_union, left, exact ha₁,
         replace ha₂ : a₂ ∈ f₁.ran ∪ f₂.ran, rw mem_union, right, exact ha₂,
@@ -1537,7 +1534,7 @@ begin
       apply card_eq_of_le_of_le (mul_cardinal (nat_is_cardinal two_nat) ⟨_, rfl⟩) ⟨_, rfl⟩,
         change (two.card_mul μ).card_le μ,
         nth_rewrite 1 ←μpμ, refine card_mul_le_of_le (nat_is_cardinal two_nat) ⟨_, rfl⟩ _ ⟨_, rfl⟩,
-        have two_le_a : two.card_le ℵ₀, rw card_le_iff, left, apply finite_card_lt_aleph_null,
+        have two_le_a : two.card_le (card ω), rw card_le_iff, left, apply finite_card_lt_aleph_null,
           rw finite_cardinal_iff_nat, exact two_nat,
         refine card_le_trans ⟨_, rfl⟩ two_le_a _, apply aleph_null_least_infinite_cardinal ⟨_, rfl⟩,
         rw card_finite_iff_finite, exact hAinf,
@@ -1585,7 +1582,7 @@ begin
       apply union_one_to_one fcorr.oto gcorr.oto, rw [fcorr.onto.right.right, gcorr.onto.right.right],
       exact hdisj,
     have Dinhab : D.inhab,
-      have a_le_D : card_le ℵ₀ D.card, apply aleph_null_least_infinite_cardinal ⟨_, rfl⟩,
+      have a_le_D : card_le (card ω) D.card, apply aleph_null_least_infinite_cardinal ⟨_, rfl⟩,
         rw [hDA, card_finite_iff_finite], exact hAinf,
       rw card_le_iff_equin' at a_le_D, rcases a_le_D with ⟨f, finto, foto⟩,
       use f.fun_value ∅, apply finto.right.right, apply fun_value_def'' finto.left,
@@ -1611,7 +1608,7 @@ begin
   apply card_eq_of_le_of_le (mul_cardinal (nat_is_cardinal two_nat) hκ) hκ,
     nth_rewrite 1 ←mul_infinite_card_eq_self hκ hinf,
     refine card_mul_le_of_le (nat_is_cardinal two_nat) hκ _ hκ,
-    have two_le_a : two.card_le ℵ₀, rw card_le_iff, left, apply finite_card_lt_aleph_null,
+    have two_le_a : two.card_le (card ω), rw card_le_iff, left, apply finite_card_lt_aleph_null,
       rw finite_cardinal_iff_nat, exact two_nat,
     refine card_le_trans ⟨_, rfl⟩ two_le_a (aleph_null_least_infinite_cardinal hκ hinf),
   nth_rewrite 0 ←card_mul_one_eq_self hκ,

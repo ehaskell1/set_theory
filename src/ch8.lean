@@ -101,7 +101,7 @@ begin
       rintros α ⟨αcard, -⟩, exact card_is_ord αcard,
     push_neg, intros α αord,
     by_cases αfin : α.is_finite,
-      refine ⟨ℵ₀, ⟨⟨_, rfl⟩, aleph_null_infinite_cardinal⟩, _⟩,
+      refine ⟨card ω, ⟨⟨_, rfl⟩, aleph_null_infinite_cardinal⟩, _⟩,
       rw [ord_not_le_iff_lt (card_is_ord ⟨_, rfl⟩) αord, card_of_cardinal_eq_self omega_is_card],
       apply ord_lt_of_card_lt αord omega_is_ord,
       exact finite_card_lt_aleph_null' αfin,
@@ -209,7 +209,7 @@ begin
   intros β βX, rw memX at βX, symmetry, exact βX.right.right,
 end
 
-lemma Aleph_zero_eq : Aleph ∅ = ℵ₀ :=
+lemma Aleph_zero_eq : Aleph ∅ = card ω :=
 begin
   have zord := nat_is_ord zero_nat,
   have zcard := (Aleph_is_card zord),
@@ -279,13 +279,13 @@ end
 
 noncomputable def beth_fun : Set → Set := (fun f,
   if f.dom = ∅
-    then ℵ₀
+    then card ω
   else if ex₁ : ∃ α : Set, α.is_ordinal ∧ f.dom = α.succ
     then card_exp two (f.fun_value (classical.some ex₁))
   else if ex₂ : ∃ γ : Set, γ.limit_ord ∧ f.dom = γ
     then f.ran.Union
   else ∅)
-lemma beth_fun_empty {f : Set} (fdom : f.dom = ∅) : beth_fun f = ℵ₀ :=
+lemma beth_fun_empty {f : Set} (fdom : f.dom = ∅) : beth_fun f = card ω :=
 begin
   rw beth_fun, dsimp, rw if_pos fdom,
 end
@@ -309,7 +309,7 @@ begin
   rw beth_fun, dsimp, rw [if_neg ex₀, dif_neg ex₁, if_pos ex₂],
 end
 noncomputable def beth : Set → Set := ord_rec beth_fun
-lemma beth_zero : beth ∅ = ℵ₀ :=
+lemma beth_zero : beth ∅ = card ω :=
 begin
   have dom : (con_fun beth_fun ∅).dom = ∅ := con_fun_dom zero_is_ord,
   rw [beth, ord_rec_spec zero_is_ord, beth_fun_empty dom], 
