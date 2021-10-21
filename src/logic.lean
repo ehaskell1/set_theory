@@ -27,3 +27,18 @@ lemma subst_right_of_and {α : Sort u} {p : Prop} {a b c : α} (h : p → b = c)
 
 lemma exists_unique_eq {α : Sort u} {β : Sort v} (f : α → β) : ∀ x : α, ∃! y : β, (λ (a : α) (b : β), b = f a) x y :=
 λ x, ⟨f x, rfl, λ y, assume hy, hy⟩
+
+lemma rel_congr_left {α : Sort u} {r : α → α → Prop} (symm : symmetric r) (trans : transitive r)
+  {x y : α} (xy : r x y) {z : α} : r x z ↔ r y z :=
+⟨λ xz, trans (symm xy) xz, λ yz, trans xy yz⟩
+
+lemma iff_of_not_of_not {p : Prop} (np : ¬ p) {q : Prop} (nq : ¬ q) : p ↔ q :=
+⟨λ hp, false.elim (np hp), λ hq, false.elim (nq hq)⟩
+
+lemma ite_prop {α : Sort u} {p : α → Prop} {x y : α} (px : p x) (py : p y) {q : Prop} [h : decidable q] :
+p (if q then x else y) :=
+begin
+  by_cases q,
+    rw if_pos h, exact px,
+  rw if_neg h, exact py,
+end

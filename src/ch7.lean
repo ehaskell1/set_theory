@@ -28,9 +28,15 @@ end
 lemma part_order_of_lin_order {A R : Set} (hR : A.lin_order R) : R.part_order :=
 ⟨λ z, assume hz, is_pair_of_mem_prod (hR.rel hz), hR.trans, hR.irrefl⟩
 
-structure struct :=
-(fld rel : Set)
+structure struct : Type (u+1) :=
+(fld rel : Set.{u})
 (is_rel : rel ⊆ fld.prod fld)
+
+@[ext]
+lemma struct.ext (S R : struct) (fe : R.fld = S.fld) (re : R.rel = S.rel) : R = S :=
+begin
+  cases R, cases S, dsimp at fe re, simp only [re, fe], exact ⟨rfl, rfl⟩,
+end
 
 def is_least (D R m : Set) : Prop := ¬ ∃ x : Set, x ∈ D ∧ x.pair m ∈ R
 
@@ -285,6 +291,31 @@ end
 noncomputable def repl_img (f : Set → Set) (A : Set) : Set := classical.some (@replacement'' f A)
 lemma mem_repl_img {f : Set → Set} {A y : Set} : y ∈ repl_img f A ↔ ∃ x : Set, x ∈ A ∧ y = f x :=
 classical.some_spec (@replacement'' f A)
+
+lemma repl_img_sub_of_closed {f : Set → Set} {X : Set}
+  (h₁ : ∀ {x : Set}, x ∈ X → f x ∈ X) : repl_img f X ⊆ X :=
+begin
+  intro y, rw mem_repl_img, rintro ⟨x, xX, yfx⟩, subst yfx, exact h₁ xX,
+end
+
+lemma of_repl_img {f : Set → Set} {X : Set} {p : Set → Prop} (h : ∀ {x : Set}, x ∈ X → p (f x)) :
+  ∀ ⦃y : Set⦄, y ∈ repl_img f X → p y :=
+begin
+  intro y, rw mem_repl_img, rintro ⟨x, xX, yfx⟩, subst yfx, exact h xX,
+end
+
+lemma repl_img_ext {X : Set} {f g : Set → Set} (h : ∀ ⦃x : Set⦄, x ∈ X → f x = g x)
+  : repl_img f X = repl_img g X :=
+begin
+  apply ext, intro z, simp only [mem_repl_img], apply exists_congr, finish,
+end
+
+lemma repl_img_comp {X : Set} {f g : Set → Set} : repl_img f (repl_img g X) = repl_img (f ∘ g) X :=
+begin
+  apply ext, simp only [mem_repl_img, function.comp_app], intro z, split,
+    finish,
+  tauto,
+end
 
 lemma repl_img_equin_self {X : Set}
   {f : Set → Set} (foto : ∀ {x₁ : Set}, x₁ ∈ X → ∀ {x₂ : Set}, x₂ ∈ X → f x₁ = f x₂ → x₁ = x₂) :
@@ -610,7 +641,33 @@ structure isomorphism (R S : struct) (f : Set) : Prop :=
 (corr : R.fld.correspondence S.fld f)
 (iso : ∀ ⦃x y : Set⦄, x ∈ R.fld → y ∈ R.fld → (x.pair y ∈ R.rel ↔ (f.fun_value x).pair (f.fun_value y) ∈ S.rel))
 
+lemma iso_iso {R S : struct} {f : Set} (iso : f.isomorphism R S) :
+  ∀ ⦃x y : Set⦄, x.pair y ∈ R.rel ↔ x ∈ R.fld ∧ y ∈ R.fld ∧ (f.fun_value x).pair (f.fun_value y) ∈ S.rel :=
+begin
+  intros x y, split,
+    rintro xy, have xy' := R.is_rel xy, rw pair_mem_prod at xy', rw ←iso.iso xy'.left xy'.right,
+    exact ⟨xy'.left, xy'.right, xy⟩,
+  rintro ⟨xR, yR, fxy⟩, rw iso.iso xR yR, exact fxy,
+end
+
 def isomorphic (R S : struct) : Prop := ∃ f : Set, f.isomorphism R S
+
+lemma iso_of_corr {R S : struct} {f : Set} (RS : R.fld.correspondence S.fld f)
+  (h : ∀ ⦃x y : Set⦄, x ∈ R.fld → y ∈ R.fld → (x.pair y ∈ R.rel ↔ (f.fun_value x).pair (f.fun_value y) ∈ S.rel)) :
+  isomorphic R S :=
+⟨_, RS, h⟩
+
+lemma iso_of_corr' {R S : struct} {f : Set} (RS : R.fld.correspondence S.fld f)
+  (h : ∀ ⦃x y : Set⦄, x.pair y ∈ R.rel ↔ x ∈ R.fld ∧ y ∈ R.fld ∧ (f.fun_value x).pair (f.fun_value y) ∈ S.rel) :
+  f.isomorphism R S :=
+begin
+  refine ⟨RS, _⟩, intros x y xR yR, rw h, finish,
+end
+
+lemma equin_of_iso {R S : struct} (RS : isomorphic R S) : R.fld ≈ S.fld :=
+begin
+  rcases RS with ⟨f, corr, -⟩, exact ⟨_, corr⟩,
+end
 
 -- Theorem 7E part 1
 theorem iso_refl {R : struct} : isomorphic R R :=
@@ -657,6 +714,9 @@ begin
   rw [T3H_c gcorr.onto.left fcorr.onto.left hx', T3H_c gcorr.onto.left fcorr.onto.left hy'],
   rw ←giso hfx hfy, rw ←fiso hx hy,
 end
+
+lemma iso_of_eq {R S : struct} (RS : R = S) : isomorphic R S :=
+by rw RS; exact iso_refl
 
 def fun_order (A R f : Set) : Set := pair_sep (λ x y, (f.fun_value x).pair (f.fun_value y) ∈ R) A A
 
@@ -781,6 +841,9 @@ begin
   simp only [eps_order_struct_rel, eps_order, xA, yA, true_and, pair_mem_pair_sep],
 end
 
+lemma pair_mem_eps_order' {A x y : Set} (xA : x ∈ A) (yA : y ∈ A) : x.pair y ∈ A.eps_order ↔ x ∈ y :=
+pair_mem_eps_order xA yA
+
 lemma eps_img_iso {R : struct} (well : R.fld.well_order R.rel) : (eps_img_fun R).isomorphism R (eps_img R).eps_order_struct :=
 begin
   refine ⟨⟨eps_img_fun_onto well, eps_img_fun_oto well⟩, _⟩,
@@ -865,6 +928,13 @@ begin
 end
 
 def is_ordinal (S : Set) : Prop := ∃ R : struct, R.fld.well_order R.rel ∧ S = eps_img R
+
+lemma eps_img_ord {R : struct} (Rwell : R.fld.well_order R.rel) : (eps_img R).is_ordinal :=
+⟨_, Rwell, rfl⟩
+
+lemma exists_iso_ord {R : struct} (Rwell : R.fld.well_order R.rel) : ∃ α : Set, α.is_ordinal ∧ isomorphic α.eps_order_struct R :=
+⟨_, ⟨_, Rwell, rfl⟩, iso_symm (eps_img_isomorphic Rwell)⟩
+
 def struct_restrict (R : struct) (S : Set) : struct := ⟨S, R.rel ∩ (S.prod S), inter_subset_right⟩
 
 @[simp]
@@ -1124,9 +1194,26 @@ begin
   rcases ordinal with ⟨R, well, Re⟩, rw Re, exact eps_img_well_order well,
 end
 
+lemma ordinal_well_ordered' {α : Set} (ordinal : α.is_ordinal) : α.eps_order_struct.fld.well_order α.eps_order_struct.rel :=
+ordinal_well_ordered ordinal
+
 lemma ordinal_trans {α : Set} (ordinal : α.is_ordinal) : α.transitive_set :=
 begin
   rcases ordinal with ⟨R, well, Re⟩, rw Re, exact eps_img_transitive well,
+end
+
+lemma seg_ord {α : Set} (αord : α.is_ordinal) {β : Set} (βα : β ∈ α) : α.eps_order.seg β = β :=
+seg_eq_of_trans (ordinal_trans αord) βα
+
+theorem eps_img_ord_eq_self {α : Set} (αord : α.is_ordinal) : eps_img α.eps_order_struct = α :=
+eps_img_trans_well_eq_self (ordinal_trans αord) (ordinal_well_ordered αord)
+
+lemma eps_img_eq_of_iso_ord {α : Set} (αord : α.is_ordinal) {W : struct} (Wiso : isomorphic W α.eps_order_struct) :
+  eps_img W = α :=
+begin
+  rw [←eps_img_ord_eq_self αord,
+    ←iso_iff_eps_img_eq (well_order_iso (iso_symm Wiso) (ordinal_well_ordered' αord)) (ordinal_well_ordered' αord)],
+  exact Wiso,
 end
 
 lemma restrict_seg_sub {R : struct} {t : Set} (tA : t ∈ R.fld) : (struct_restrict R (R.rel.seg t)).rel.seg t ⊆ R.rel.seg t :=
@@ -1174,13 +1261,16 @@ begin
 end
 
 -- Theorem 7M part a
-theorem ord_of_mem_ord {α : Set} (ord : α.is_ordinal) {x : Set} (xα : x ∈ α) : x.is_ordinal :=
+theorem ord_of_mem_ord {α : Set} (ord : α.is_ordinal) ⦃x : Set⦄ (xα : x ∈ α) : x.is_ordinal :=
 begin
   rcases ord with ⟨R, well, αe⟩, rw [αe, mem_eps_img well] at xα,
   obtain ⟨t, tA, xt⟩ := xα, subst xt,
   refine ⟨(R.rel.seg t).struct_restrict R, well_order_struct_restrict well (seg_sub_fld tA), _⟩,
   rw [eps_img_fun_value_img well tA], exact (eps_img_img_eps_fun well tA).symm,
 end
+
+lemma ord_of_succ_ord {α : Set} (αord : α.succ.is_ordinal) : α.is_ordinal :=
+ord_of_mem_ord αord self_mem_succ
 
 -- Theorem 7M part b
 theorem ord_mem_trans {α β γ : Set} (γord : γ.is_ordinal)
@@ -1306,6 +1396,8 @@ begin
     subst mk, exact nat_not_mem_self mω km, },
 end
 
+theorem one_is_ord : is_ordinal one := nat_is_ord one_nat
+
 lemma eps_order_ordinals_lin {A : Set} (Aord : ∀ {x : Set}, x ∈ A → x.is_ordinal) : A.lin_order A.eps_order :=
 begin
   refine ⟨pair_sep_sub_prod, _, _, _⟩,
@@ -1386,6 +1478,14 @@ begin
   intro αβ, by_cases αeβ : α = β,
     subst αeβ, right, refl,
   left, rw ord_mem_iff_ssub αord βord, exact ⟨αβ, αeβ⟩,
+end
+
+lemma eps_order_sub {α : Set} (αord : α.is_ordinal) {β : Set} (βord : β.is_ordinal) (αβ : α ≤ β) :
+  α.eps_order ⊆ β.eps_order :=
+begin
+  have sub : α ⊆ β, rw ←ord_le_iff_sub αord βord, exact αβ,
+  apply rel_sub pair_sep_is_rel, intros x y xy, rw pair_mem_pair_sep at xy, rcases xy with ⟨xα, yα, xy⟩,
+  rw pair_mem_eps_order' (sub xα) (sub yα), exact xy,
 end
 
 lemma Union_least_upper_bound {α β : Set} (βord : β.is_ordinal) (αβ : α ∈ β) :
@@ -1486,7 +1586,7 @@ end
 
 -- exercise 18
 lemma Union_max_of_exists_max {S : Set} (Sord : ∀ {x : Set}, x ∈ S → x.is_ordinal) :
-  S.Union ∉ S ∧ ¬ (∃ β : Set, β ∈ S ∧  ∀ {α : Set}, α ∈ S → α ≤ β) ∧ ¬ (∃ α : Set, S.Union = α.succ)
+  S.Union ∉ S ∧ ¬ (∃ β : Set, β ∈ S ∧ ∀ {α : Set}, α ∈ S → α ≤ β) ∧ ¬ (∃ α : Set, S.Union = α.succ)
   ∨ S.Union ∈ S ∧ ∀ {α : Set}, α ∈ S → α ≤ S.Union :=
 begin
   by_cases case : S.Union ∈ S,
@@ -1508,6 +1608,23 @@ begin
     exact ⟨⟨_, δS, δγ⟩, βγ⟩,
   rw αe at nmax', apply nmax', refine ⟨_, self_mem_succ, λ β, assume βα, _⟩,
   rw ←mem_succ_iff_le, exact βα,
+end
+
+lemma case_exists_bound {S : Set} (Sord : ∀ {x : Set}, x ∈ S → x.is_ordinal)
+  (ex : ∃ β : Set, β ∈ S ∧ ∀ {α : Set}, α ∈ S → α ≤ β) : S.Union ∈ S ∧ ∀ {α : Set}, α ∈ S → α ≤ S.Union :=
+begin
+  obtain (⟨-, ex₂, -⟩|h) := Union_max_of_exists_max @Sord,
+    exfalso, exact ex₂ ex,
+  exact h,
+end
+
+lemma case_not_exists_bound {S : Set} (Sord : ∀ {x : Set}, x ∈ S → x.is_ordinal)
+  (nex : ¬ ∃ β : Set, β ∈ S ∧ ∀ {α : Set}, α ∈ S → α ≤ β) : S.Union ∉ S ∧ ¬ ∃ α : Set, S.Union = α.succ :=
+begin
+  rcases Union_max_of_exists_max @Sord with (⟨SUS, -, nE⟩|⟨SU, h⟩),
+    exact ⟨SUS, nE⟩,
+  rw ←not_or_distrib, rintro (-|-);
+  apply nex; exact ⟨_, SU, @h⟩,
 end
 
 lemma Union_succ_ord_eq_self {α : Set} (αord : α.is_ordinal) : α.succ.Union = α :=
@@ -1764,6 +1881,9 @@ begin
   rw ord_eq_iff_le_and_le αord card_is_ordinal,
   exact ⟨least card_is_ordinal equin_card_of_self, card_least αord equin⟩,
 end
+
+lemma is_card_of {A α : Set} (αord : α.is_ordinal) (equin : A ≈ α) (least : ∀ {β : Set}, β.is_ordinal → A ≈ β → α ≤ β) : α.is_cardinal :=
+⟨_, (eq_card αord equin @least).symm⟩
 
 -- parts 5-6 of theorem 6M
 def is_chain (B : Set) : Prop := ∀ ⦃C : Set⦄, C ∈ B → ∀ ⦃D : Set⦄, D ∈ B → C ⊆ D ∨ D ⊆ C

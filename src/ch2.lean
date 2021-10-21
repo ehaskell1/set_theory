@@ -231,6 +231,12 @@ begin
   exact ⟨union_subset_of_subset_of_subset hAB subset_self, subset_union_right⟩,
 end
 
+lemma diff_singleton_union_eq {A x : Set} (xA : x ∈ A) : (A \ {x}) ∪ {x} = A :=
+begin
+  rw union_comm, apply union_diff_eq_self_of_subset,
+  intros z zx, rw mem_singleton at zx, subst zx, exact xA,
+end
+
 lemma subset_diff {A B : Set} : A \ B ⊆ A :=
 begin
   intros x hx, rw mem_diff at hx, exact hx.left,
@@ -315,6 +321,42 @@ end
 lemma sub_inter_of_sub {x a b : Set} (xa : x ⊆ a) (xb : x ⊆ b) : x ⊆ a ∩ b :=
 begin
   intros z zx, rw mem_inter, exact ⟨xa zx, xb zx⟩,
+end
+
+lemma Union_sub_of_sub {A B : Set} (AB : A ⊆ B) : A.Union ⊆ B.Union :=
+begin
+  simp only [subset_def, mem_Union, exists_prop],
+  rintros x ⟨y, yA, xy⟩, exact ⟨_, AB yA, xy⟩,
+end
+
+lemma Union_sub {A X : Set} (h : ∀ {x : Set}, x ∈ X → x ⊆ A) : X.Union ⊆ A :=
+begin
+  intro z, rw mem_Union, rintro ⟨x, xX, zx⟩, exact h xX zx,
+end
+
+lemma Union_diff_empty_eq {A : Set} : A.Union = (A \ {∅}).Union :=
+begin
+  apply ext, simp only [mem_Union, exists_prop, mem_diff, mem_singleton], intro x, split,
+    rintro ⟨y, yA, xy⟩, refine ⟨_, ⟨yA, _⟩, xy⟩, apply ne_empty_of_inhabited, rw inhab, exact ⟨_, xy⟩,
+  rintro ⟨y, ⟨yA, -⟩, xy⟩, finish,
+end
+
+lemma union_eq_Union {A B : Set} : A ∪ B = Union {A, B} :=
+begin
+  apply ext, simp only [mem_union, mem_Union, exists_prop, mem_insert, mem_singleton], intro x, split,
+    finish,
+  rintro ⟨z, (hz|hz), xz⟩; finish,
+end
+
+lemma Union_empty : Union ∅ = ∅ :=
+begin
+  rw eq_empty, intros z h, rw mem_Union at h, rcases h with ⟨x, h, -⟩, exact mem_empty _ h,
+end
+
+lemma inhab_of_Union_inhab {S : Set} (inh : S.Union.inhab) : S.inhab :=
+begin
+  obtain ⟨x, hx⟩ := inh, rw mem_Union at hx, rcases hx with ⟨y, yS, xy⟩,
+  exact ⟨_, yS⟩,
 end
 
 end Set

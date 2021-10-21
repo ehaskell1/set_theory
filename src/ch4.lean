@@ -54,6 +54,9 @@ begin
     intros A hA, exact hA.succ_closed (ha hA), },
 end
 
+lemma succ_nat_is_nat {n : Set} (nω : n ∈ ω) : n.succ ∈ ω :=
+nat_induct.succ_closed nω
+
 def one : Set := (∅ : Set).succ
 def two : Set := one.succ
 def three : Set := two.succ
@@ -731,6 +734,9 @@ begin
     rw [mul_assoc (exp_into_nat hm (nat_induct.succ_closed hp)) (exp_into_nat hn hp) hn, exp_ind hm hp], },
 end
 
+theorem exp_one {m : Set} (mω : m ∈ nat.{u}) : m ^ one.{u} = m :=
+by rw [one, exp_ind mω zero_nat, exp_base mω, one_mul mω]
+
 instance : has_lt Set := ⟨Set.has_mem.mem⟩
 instance : has_le Set := ⟨(λ m n, m ∈ n ∨ m = n)⟩
 
@@ -783,6 +789,15 @@ end
 lemma nat_not_mem_self : ∀ {n : Set}, n ∈ ω → n ∉ n :=
 @induction (λ n, n ∉ n) (mem_empty _) (λ n hn hnn hsn, hnn ((mem_iff_succ_mem_succ hn hn).mpr hsn))
 
+lemma lt_iff' {n m : Set} (mω : m ∈ ω) : n ∈ m ↔ n ≤ m ∧ n ≠ m :=
+begin
+  split,
+    intro nm, refine ⟨or.inl nm, λ h, _⟩, subst h, exact nat_not_mem_self mω nm,
+  rintro ⟨(nm|nm), h⟩,
+    exact nm,
+  exfalso, exact h nm,
+end
+
 def nat_order : Set := Set.pair_sep Set.has_mem.mem ω ω
 
 -- The Trichotomy Law for ω can be deduced from here
@@ -823,6 +838,28 @@ begin
   exact (ht ⟨hk, hm, hkm⟩ ⟨hm, hn, hmn⟩).right.right,
 end
 
+lemma lt_trans' {k m n : Set} (nω : n ∈ ω) (km : k ∈ m) (mn : m ∈ n) : k ∈ n :=
+let mω := mem_nat_of_mem_nat_of_mem nω mn in
+lt_trans (mem_nat_of_mem_nat_of_mem mω km) mω nω km mn
+
+lemma le_trans {m n : Set} (mn : m ≤ n) {k : Set} (nk : n ≤ k) (kω : k ∈ ω) : m ≤ k :=
+begin
+  cases mn,
+    cases nk,
+      left, exact lt_trans' kω mn nk,
+    subst nk, left, exact mn,
+  subst mn, cases nk,
+    left, exact nk,
+  subst nk, right, refl,
+end
+
+lemma nat_lt_of_le_of_lt {n m : Set} (nm : n ≤ m) {k : Set} (mk : m ∈ k) (kω : k ∈ ω) : n ∈ k :=
+begin
+  cases nm,
+    exact lt_trans' kω nm mk,
+  subst nm, exact mk,
+end
+
 lemma not_lt_and_gt {m n : Set} (hm : m ∈ ω) (hn : n ∈ ω) : ¬ (m ∈ n ∧ n ∈ m) :=
 begin
   intro h, apply nat_not_mem_self hm, exact lt_trans hm hn hm h.left h.right,
@@ -834,6 +871,15 @@ begin
   simp only [nat_order, pair_mem_pair_sep] at h, cases h,
     exact or.inl h.right.right,
   exact or.inr h.right.right,
+end
+
+lemma nat_le_or_le {m n : Set} (hm : m ∈ ω) (hn : n ∈ ω) : m ≤ n ∨ n ≤ m :=
+begin
+  by_cases mn : m = n,
+    left, right, exact mn,
+  cases nat_order_conn hm hn mn,
+    left, left, exact h,
+  right, left, exact h,
 end
 
 instance : has_ssubset Set := ⟨(λ m n, m ⊆ n ∧ m ≠ n)⟩
@@ -871,6 +917,55 @@ begin
   { rintro (h|h),
     { exact ((nat_ssub_iff_mem hm hn).mpr h).left, },
     { subst h, exact subset_self, }, },
+end
+
+lemma zero_mem_succ {n : Set} (nω : n ∈ ω) : ∅ ∈ n.succ :=
+begin
+  revert n, refine @induction _ _ _,
+    exact self_mem_succ,
+  intros n nω ind,
+  have nω' := nat_induct.succ_closed nω,
+  exact lt_trans zero_nat nω' (nat_induct.succ_closed nω') ind self_mem_succ,
+end
+
+lemma zero_ne_one : ∅ ≠ one :=
+begin
+  intro he, apply nat_not_mem_self zero_nat, nth_rewrite 1 he, exact self_mem_succ,
+end
+
+lemma one_ne_two : one ≠ two :=
+begin
+  intro he, apply nat_not_mem_self one_nat, nth_rewrite 1 he, exact self_mem_succ,
+end
+
+lemma zero_ne_two : ∅ ≠ two :=
+begin
+  intro he, apply nat_not_mem_self zero_nat, nth_rewrite 1 he, exact self_sub_succ self_mem_succ,
+end
+
+lemma zero_lt_one : ∅ ∈ one :=
+by rw [one, succ, union_empty, mem_singleton]
+
+lemma one_lt_two : one ∈ two :=
+by rw [two, succ, mem_union, mem_singleton]; exact or.inl rfl
+
+lemma zero_lt_two : ∅ ∈ two :=
+lt_trans' two_nat zero_lt_one one_lt_two
+
+theorem unbounded_Union_eq_nat {A : Set} (hA : A ⊆ ω) (base : one ∈ A)
+  (unb : ∀ {n : Set}, n ∈ A → ∃ m : Set, m ∈ A ∧ n ∈ m) : A.Union = ω :=
+begin
+  apply eq_nat_of_induct_sub,
+    split,
+      rw mem_Union, exact ⟨_, base, zero_lt_one⟩,
+    intros n hn, simp only [mem_Union] at hn ⊢, rcases hn with ⟨m, mA, nm⟩,
+    obtain ⟨k, kA, mk⟩ := unb mA, refine ⟨_, kA, _⟩,
+    refine nat_lt_of_le_of_lt _ mk (hA kA),
+    rwa ←mem_iff_succ_le (mem_nat_of_mem_nat_of_mem (hA mA) nm) (hA mA),
+  apply Union_sub,
+  suffices h : ∀ {x : Set}, x ∈ ω → x ⊆ ω,
+    intros x xA, exact h (hA xA),
+  rw ←transitive_set_iff', exact nat_transitive_set,
 end
 
 -- Theorem 4N part a
@@ -928,6 +1023,16 @@ begin
   rw [mul_comm hp hm, mul_comm hp hn], exact mul_lt_mul_of_lt hm hn hp hpnz,
 end
 
+lemma mul_lt_mul_of_lt' {m n : Set.{u}} (nω : n ∈ nat.{u}) (mn : m ∈ n) : m * m ∈ n * n :=
+begin
+  have nz : n ≠ ∅, intro nz, subst nz, exact mem_empty _ mn,
+  by_cases mz : m = ∅,
+    subst mz, rw mul_base zero_nat, rwa [←mul_base nω, ←mul_lt_mul_of_lt_left zero_nat nω nω nz],
+  have mω : m ∈ nat.{u} := mem_nat_of_mem_nat_of_mem nω mn,
+  apply lt_trans' (mul_into_nat nω nω) ((mul_lt_mul_of_lt mω nω mω mz).mp mn),
+  exact (mul_lt_mul_of_lt_left mω nω nω nz).mp mn,
+end
+
 -- Corollary 4P part a
 theorem cancel_add_right {m : Set} (hm : m ∈ ω) {n : Set} (hn : n ∈ ω) {p : Set} (hp : p ∈ ω) (h : m + p = n + p) : m = n :=
 begin
@@ -960,6 +1065,27 @@ begin
     rw [exp_base hb, one], exact self_mem_succ,
   intros n hn hi, rw [exp_ind hb hn, ←zero_mul hb, ←mul_lt_mul_of_lt zero_nat (exp_into_nat hb hn) hb hbnz],
   exact hi,
+end
+
+lemma not_zero_of_ge_not_zero {n : Set} (nω : n ∈ ω) (nz : n ≠ ∅) {m : Set} (m ∈ ω) (nm : n ≤ m) : m ≠ ∅ :=
+begin
+  intro mz, subst mz, cases nm,
+    exact mem_empty _ nm,
+  subst nm, exact nz rfl,
+end
+
+lemma exp_gt_one {n : Set} (nω : n ∈ nat.{u}) (hn : one ∈ n) : ∀ {m : Set.{u}}, m ∈ nat.{u} → one ∈ n ^ m.succ :=
+begin
+  apply induction,
+    rwa [←one, exp_one nω],
+  intros m mω ind,
+  have mω' := succ_nat_is_nat mω,
+  apply lt_trans' (exp_into_nat nω (succ_nat_is_nat mω')) ind,
+  have nmω := exp_into_nat nω mω',
+  have nmnz : n ^ m.succ ≠ ∅, apply @not_zero_of_ge_not_zero one one_nat zero_ne_one.symm (n ^ m.succ),
+      exact nmω,
+    exact or.inl ind,
+  rwa [←mul_one nmω, exp_ind nω mω', ←mul_lt_mul_of_lt_left one_nat nω nmω nmnz],
 end
 
 theorem nat_well_order {A : Set} (hA : A ⊆ ω) (hne : A ≠ ∅) : ∃ m : Set, m ∈ A ∧ ∀ {n : Set}, n ∈ A → m ≤ n :=
@@ -1042,21 +1168,6 @@ begin
   { apply nat_not_mem_self hno, subst ha, exact hnm, },
 end
 
-lemma zero_ne_one : ∅ ≠ one :=
-begin
-  intro he, apply nat_not_mem_self zero_nat, nth_rewrite 1 he, exact self_mem_succ,
-end
-
-lemma one_ne_two : one ≠ two :=
-begin
-  intro he, apply nat_not_mem_self one_nat, nth_rewrite 1 he, exact self_mem_succ,
-end
-
-lemma zero_ne_two : ∅ ≠ two :=
-begin
-  intro he, apply nat_not_mem_self zero_nat, nth_rewrite 1 he, exact self_sub_succ self_mem_succ,
-end
-
 -- chapter 4 problem 22
 lemma mem_self_add_succ {m : Set} (hm : m ∈ ω) {p : Set} (hp : p ∈ ω) : m ∈ m + p.succ :=
 begin
@@ -1077,6 +1188,26 @@ begin
     refine ⟨p.succ, nat_induct.succ_closed hp, _⟩,
     rw [add_ind hm (nat_induct.succ_closed hp), he],
   refine ⟨∅, zero_nat, _⟩, rw [add_ind hm zero_nat, add_base hm, hmn],
+end
+
+lemma exp_lt_of_lt {b : Set} (bω : b ∈ nat.{u}) (hb : one ∈ b)
+  {n m : Set} (nm : n ∈ m) (mω : m ∈ nat.{u}) : b ^ n ∈ b ^ m :=
+begin
+  have nω := mem_nat_of_mem_nat_of_mem mω nm,
+  obtain ⟨k, kω, nkm⟩ := exists_addend_of_lt nω mω nm,
+  subst nkm, rw [exp_add bω nω (succ_nat_is_nat kω)],
+  have bnω := exp_into_nat bω nω,
+  nth_rewrite 0 ←mul_one bnω,
+  have bnz : b ^ n ≠ ∅, apply @not_zero_of_ge_not_zero one one_nat zero_ne_one.symm (b ^ n),
+      exact bnω,
+    rw [one, ←mem_iff_succ_le zero_nat bnω],
+    apply nonzero_exp_positive bω,
+      apply @not_zero_of_ge_not_zero one one_nat zero_ne_one.symm b,
+        exact bω,
+      left, exact hb,
+    exact nω,
+  rw ←mul_lt_mul_of_lt_left one_nat (exp_into_nat bω (succ_nat_is_nat kω)) bnω bnz,
+  exact exp_gt_one bω hb kω,
 end
 
 lemma lt_iff {m : Set} (hm : m ∈ ω) {n : Set} (hn : n ∈ ω) : m ∈ n ↔ ∃ p : Set, p ∈ ω ∧ m + p.succ = n :=

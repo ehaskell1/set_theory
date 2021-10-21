@@ -8,6 +8,17 @@ lemma card_nat {n : Set} (hn : n ∈ ω) : n.card = n :=
 have hf : n.is_finite := ⟨n, hn, equin_refl⟩,
 unique_of_exists_unique (exists_unique_equiv_nat_of_finite hf) (card_finite hf) ⟨hn, equin_refl⟩
 
+lemma eq_empty_of_card_empty {A : Set} (Acard : A.card = ∅) : A = ∅ :=
+begin
+  rw [←card_nat (zero_nat), card_equiv] at Acard,
+  exact empty_of_equin_empty Acard,
+end
+
+lemma ne_empty_of_zero_mem_card {A : Set} (zA : ∅ ∈ A.card) : A ≠ ∅ :=
+begin
+  intro Ae, subst Ae, rw card_nat zero_nat at zA, exact mem_empty _ zA,
+end
+
 lemma finite_iff {A : Set} : A.is_finite ↔ ∃ n : Set, n ∈ ω ∧ A.card = n :=
 begin
   simp only [is_finite, ←card_equiv, subst_right_of_and card_nat],
@@ -54,6 +65,11 @@ begin
   rw rel_eq_empty prod_is_rel, intros x y h, rw pair_mem_prod at h, exact mem_empty _ h.right,
 end
 
+lemma empty_prod_eq_empty {A : Set} : prod ∅ A = ∅ :=
+begin
+  rw rel_eq_empty prod_is_rel, intros x y h, rw pair_mem_prod at h, exact mem_empty _ h.left,
+end
+
 -- excercise 6
 theorem card_not_set {κ : Set} (hc : κ.is_cardinal) (hnz : κ ≠ ∅) : ¬ ∃ Κ : Set, ∀ X : Set, X ∈ Κ ↔ card X = κ :=
 begin
@@ -71,6 +87,9 @@ begin
 end
 
 def finite_cardinal (κ : Set) : Prop := ∃ X : Set, X.is_finite ∧ card X = κ
+
+lemma fin_card_is_card {κ : Set} (κfin : κ.finite_cardinal) : κ.is_cardinal :=
+exists.elim κfin (λ K hK, ⟨_, hK.right⟩)
 
 theorem one_finite_all_finite {κ : Set} (hf : κ.finite_cardinal) {X : Set} (hc : card X = κ) : X.is_finite :=
 begin
@@ -192,24 +211,23 @@ begin
   exact ⟨h, honto, hoto⟩,
 end
 
-theorem T6H_b {K₁ K₂ : Set} (hK : K₁.equinumerous K₂) {L₁ L₂ : Set} (hL : L₁.equinumerous L₂) : (K₁.prod L₁).equinumerous (K₂.prod L₂) :=
+lemma T6H_b_lemma {K₁ K₂ f : Set} (fc : K₁.correspondence K₂ f) {L₁ L₂ g : Set} (gc : L₁.correspondence L₂ g) :
+  correspondence (K₁.prod L₁) (K₂.prod L₂) (pair_sep_eq (K₁.prod L₁) (K₂.prod L₂) (λ a, (f.fun_value a.fst).pair (g.fun_value a.snd))) :=
 begin
-  rcases hK with ⟨f, fonto, foto⟩,
-  rcases hL with ⟨g, gonto, goto⟩,
-  let h : Set := pair_sep (λ a b, b = (f.fun_value a.fst).pair (g.fun_value a.snd)) (K₁.prod L₁) (K₂.prod L₂),
-  have hfun : h.is_function := pair_sep_eq_is_fun,
-  have hdom : h.dom = K₁.prod L₁, apply pair_sep_eq_dom_eq, intros z hz,
+  rcases fc with ⟨fonto, foto⟩, rcases gc with ⟨gonto, goto⟩,
+  refine ⟨⟨pair_sep_eq_is_fun, pair_sep_eq_dom_eq _, pair_sep_eq_ran_eq _⟩, pair_sep_eq_oto _⟩,
+  { intros z hz, dsimp,
     rw [pair_mem_prod, ←fonto.right.right, ←gonto.right.right], split,
     { apply fun_value_def'' fonto.left, rw fonto.right.left, exact (fst_snd_mem_dom_ran hz).left, },
-    { apply fun_value_def'' gonto.left, rw gonto.right.left, exact (fst_snd_mem_dom_ran hz).right, },
-  have hran : h.ran = K₂.prod L₂, apply pair_sep_eq_ran_eq, intros b hb, rw mem_prod at hb,
+    { apply fun_value_def'' gonto.left, rw gonto.right.left, exact (fst_snd_mem_dom_ran hz).right, }, },
+  { intros b hb, rw mem_prod at hb,
     rcases hb with ⟨k, hk, l, hl, hb⟩,
     rw [←fonto.right.right, mem_ran_iff fonto.left] at hk, rw [←gonto.right.right, mem_ran_iff gonto.left] at hl,
     rcases hk with ⟨k', hk', hk⟩, rcases hl with ⟨l', hl', hl⟩,
     refine ⟨k'.pair l', _, _⟩,
     { rw pair_mem_prod, rw [←fonto.right.left, ←gonto.right.left], finish, },
-    { rw [fst_congr, snd_congr, hb, hk, hl], },
-  have hoto : h.one_to_one, apply pair_sep_eq_oto, intros p hp q hq he,
+    { dsimp, rw [fst_congr, snd_congr, hb, hk, hl], }, },
+  { intros p hp q hq he,
     have he' := pair_inj he,
     rw [fst_snd_spec (is_pair_of_mem_prod hp), fst_snd_spec (is_pair_of_mem_prod hq)],
     have feq : p.fst = q.fst, refine from_one_to_one fonto.left foto _ _ he'.left,
@@ -218,8 +236,12 @@ begin
     have seq : p.snd = q.snd, refine from_one_to_one gonto.left goto _ _ he'.right,
       { rw gonto.right.left, exact (fst_snd_mem_dom_ran hp).right, },
       { rw gonto.right.left, exact (fst_snd_mem_dom_ran hq).right, },
-    rw [feq, seq],
-  exact ⟨_, ⟨hfun, hdom, hran⟩, hoto⟩,
+    rw [feq, seq], },
+end
+
+theorem T6H_b {K₁ K₂ : Set} (hK : K₁.equinumerous K₂) {L₁ L₂ : Set} (hL : L₁.equinumerous L₂) : (K₁.prod L₁).equinumerous (K₂.prod L₂) :=
+begin
+  rcases hK with ⟨f, fc⟩, rcases hL with ⟨g, gc⟩, exact ⟨_, T6H_b_lemma fc gc⟩,
 end
 
 theorem T6H_c {K₁ K₂ : Set} (hK : K₁.equinumerous K₂) {L₁ L₂ : Set} (hL : L₁.equinumerous L₂) : (L₁.into_funs K₁).equinumerous (L₂.into_funs K₂) :=
@@ -660,6 +682,21 @@ begin
   exact ⟨_, ⟨hfun, hdom, hran⟩, hoto⟩,
 end
 
+lemma card_singleton {x : Set} : card {x} = one :=
+begin
+  rw [←card_nat one_nat, card_equiv, one, succ, union_empty],
+  exact singleton_equin,
+end
+
+lemma card_insert {A x : Set} (xA : x ∉ A) : (insert x A).card = A.card.card_add one :=
+begin
+  have h : insert x A = {x} ∪ A,
+    simp only [←ext_iff, mem_insert, mem_union, mem_singleton, forall_const, iff_self],
+  rw [h, union_comm], apply card_add_spec rfl card_singleton, rw eq_empty,
+  intros z zAx, rw [mem_inter, mem_singleton] at zAx, rcases zAx with ⟨zA, zx⟩, subst zx,
+  exact xA zA,
+end
+
 lemma card_add_one_eq_succ {n : Set} (hn : n.finite_cardinal) : n.card_add one = n.succ :=
 begin
   rcases hn with ⟨N, hf, hN⟩, have hn := (card_finite hf).left, rw hN at hn,
@@ -681,6 +718,25 @@ begin
   rw [T6J_a2 (nat_is_cardinal hm) (nat_is_cardinal hk), hi],
   have hmk : (m + k).finite_cardinal, rw finite_cardinal_iff_nat, exact add_into_nat hm hk,
   rw [card_add_one_eq_succ hmk, add_ind hm hk],
+end
+
+lemma eq_union_of_card_succ {A n : Set} (nω : n ∈ ω) (Acard : A.card = n.succ) : ∃ B x : Set, A = B ∪ {x} ∧ B.card = n ∧ x ∈ A ∧ x ∉ B :=
+begin
+  have Ane : A ≠ ∅, intro Ae, subst Ae,
+    rw [card_nat zero_nat] at Acard, exact succ_neq_empty Acard.symm,
+  obtain ⟨x, xA⟩ := inhabited_of_ne_empty Ane,
+  refine ⟨A \ {x}, x, (diff_singleton_union_eq xA).symm, _, xA, _⟩,
+    have Afin : A.is_finite, rw finite_iff, exact ⟨_, nat_induct.succ_closed nω, Acard⟩,
+    have fin : (A \ {x}).is_finite := subset_finite_of_finite Afin subset_diff,
+    rw finite_iff at fin, rcases fin with ⟨m, mω, Axm⟩, rw Axm,
+    apply cancel_add_right mω nω one_nat,
+    have onefin : one.finite_cardinal, rw finite_cardinal_iff_nat, exact one_nat,
+    have nfin : n.finite_cardinal, rw finite_cardinal_iff_nat, exact nω,
+    have mfin : m.finite_cardinal, rw finite_cardinal_iff_nat, exact mω,
+    rw [←card_add_eq_ord_add mfin onefin, ←card_add_eq_ord_add nfin onefin, card_add_one_eq_succ nfin],
+    rw [←Axm, ←@card_singleton x, card_add_comm ⟨_, rfl⟩ ⟨_, rfl⟩, ←card_add_spec rfl rfl self_inter_diff_empty],
+    rw [union_comm, diff_singleton_union_eq xA, Acard],
+  intro xAx, rw [mem_diff, mem_singleton] at xAx, exact xAx.right rfl,
 end
 
 theorem card_mul_eq_ord_mul {m : Set} (hm : m.finite_cardinal) {n : Set} (hn : n.finite_cardinal) : m.card_mul n = m * n :=
@@ -707,6 +763,12 @@ begin
   rw [T6J_e2 (nat_is_cardinal hm) (nat_is_cardinal hk), hi],
   have hmk : (m ^ k).finite_cardinal, rw finite_cardinal_iff_nat, exact exp_into_nat hm hk,
   rw [card_mul_eq_ord_mul hmk hm', exp_ind hm hk],
+end
+
+lemma card_mul_fin_of_fin {κ : Set} (κfin : κ.finite_cardinal) {μ : Set} (μfin : μ.finite_cardinal) : (κ.card_mul μ).finite_cardinal :=
+begin
+  rw [finite_cardinal_iff_nat, card_mul_eq_ord_mul κfin μfin],
+  rw finite_cardinal_iff_nat at κfin μfin, exact mul_into_nat κfin μfin,
 end
 
 -- example 8, page 142
@@ -856,6 +918,12 @@ begin
     exact card_le_of_subset h, },
 end
 
+lemma finite_card_lt_iff_lt {m : Set} (hm : m.finite_cardinal) {n : Set.{u}} (hn : n.finite_cardinal) : m.card_lt n ↔ m ∈ n :=
+begin
+  have nω : n ∈ nat.{u}, rwa ←finite_cardinal_iff_nat,
+  simp only [lt_iff' nω, card_lt], exact and_congr_left' (finite_card_le_iff_le hm hn),
+end
+
 lemma card_lt_exp {κ : Set} (hκ : κ.is_cardinal) : card_lt κ (card_exp two κ) :=
 begin
   rcases hκ with ⟨K, hK⟩, rw [←hK, ←card_power, card_lt_iff], split,
@@ -973,6 +1041,9 @@ begin
   subst κeν, apply κeμ, exact card_eq_of_le_of_le hκ hμ κlμ μlν,
 end
 
+lemma not_card_lt_cycle {κ : Set} (hκ : κ.is_cardinal) {μ : Set} (hμ : μ.is_cardinal) : ¬ (κ.card_lt μ ∧ μ.card_lt κ) :=
+λ h, (card_lt_trans hκ hμ h.left h.right).right rfl
+
 lemma card_lt_of_le_of_lt {κ : Set} (κcard : κ.is_cardinal) {μ : Set} (μcard : μ.is_cardinal) (κμ : κ.card_le μ) {ν : Set} (μν : μ.card_lt ν) : κ.card_lt ν :=
 begin
   rw card_le_iff at κμ, cases κμ,
@@ -1012,13 +1083,19 @@ begin
 end
 
 -- Theorem 6L part b
-theorem card_mul_le_of_le {κ : Set} (hκ : κ.is_cardinal) {μ : Set} (hμ : μ.is_cardinal) (hκμ : κ.card_le μ)
+theorem card_mul_le_of_le_left {κ : Set} (hκ : κ.is_cardinal) {μ : Set} (hμ : μ.is_cardinal) (hκμ : κ.card_le μ)
 {ν : Set} (hν : ν.is_cardinal) : (κ.card_mul ν).card_le (μ.card_mul ν) :=
 begin
   obtain ⟨K, M, hKM, hK, hM⟩ := exists_sets_of_card_le hκ hμ hκμ,
   rcases hν with ⟨N, hN⟩,
   rw [←card_mul_spec hK hN, ←card_mul_spec hM hN],
   exact card_le_of_subset (prod_subset_of_subset_of_subset hKM subset_self),
+end
+
+theorem card_mul_le_of_le_right {κ : Set} (hκ : κ.is_cardinal) {μ : Set} (hμ : μ.is_cardinal) (hκμ : κ.card_le μ)
+{ν : Set} (hν : ν.is_cardinal) : (ν.card_mul κ).card_le (ν.card_mul μ) :=
+begin
+  rw [card_mul_comm hν hκ, card_mul_comm hν hμ], exact card_mul_le_of_le_left hκ hμ hκμ hν,
 end
 
 -- Theorem 6L part c
@@ -1057,6 +1134,26 @@ begin
     specialize hf hZ𝓑', rw is_function_iff at hf, exact hf.right _ _ _ (hch hxyZ) hxyZ',
   specialize hf hZ𝓑, rw is_function_iff at hf, exact hf.right _ _ _ hxyZ (hch hxyZ'),
 end
+
+lemma Union_chain_onto {X : Set} (Xch : X.is_chain) (Xf : ∀ ⦃f : Set⦄, f ∈ X → f.is_function) :
+  X.Union.onto_fun (repl_img dom X).Union (repl_img ran X).Union :=
+begin
+  refine ⟨Union_chain_is_function Xch Xf, _, _⟩,
+    symmetry, apply dom_Union_eq_Union_dom, intro x,
+    simp only [mem_Union, exists_prop, mem_repl_img, ←exists_and_distrib_right, and_assoc],
+    rw exists_comm, simp only [exists_and_distrib_left, exists_eq_left, and_comm],
+  symmetry, apply ran_Union_eq_Union_ran, intro y,
+  simp only [mem_Union, exists_prop, mem_repl_img, ←exists_and_distrib_right, and_assoc],
+  rw exists_comm, simp only [exists_and_distrib_left, exists_eq_left, and_comm],
+end
+
+lemma Union_chain_fun_value {X : Set} (Xch : X.is_chain) (Xf : ∀ ⦃f : Set⦄, f ∈ X → f.is_function)
+  {f : Set} (fX : f ∈ X) {x : Set} (xf : x ∈ f.dom) : X.Union.fun_value x = f.fun_value x :=
+begin
+  symmetry, apply fun_value_def (Union_chain_is_function Xch Xf),
+  rw mem_Union, exact ⟨_, fX, fun_value_def' (Xf fX) xf⟩,
+end
+
 
 lemma Union_chain_oto {𝓑 : Set} (hch : 𝓑.is_chain) (hf : ∀ {f : Set}, f ∈ 𝓑 → f.one_to_one) : 𝓑.Union.one_to_one :=
 begin
@@ -1533,14 +1630,14 @@ begin
       rw [card_add_self_eq_two_mul_self ⟨_, rfl⟩],
       apply card_eq_of_le_of_le (mul_cardinal (nat_is_cardinal two_nat) ⟨_, rfl⟩) ⟨_, rfl⟩,
         change (two.card_mul μ).card_le μ,
-        nth_rewrite 1 ←μpμ, refine card_mul_le_of_le (nat_is_cardinal two_nat) ⟨_, rfl⟩ _ ⟨_, rfl⟩,
+        nth_rewrite 1 ←μpμ, refine card_mul_le_of_le_left (nat_is_cardinal two_nat) ⟨_, rfl⟩ _ ⟨_, rfl⟩,
         have two_le_a : two.card_le (card ω), rw card_le_iff, left, apply finite_card_lt_aleph_null,
           rw finite_cardinal_iff_nat, exact two_nat,
         refine card_le_trans ⟨_, rfl⟩ two_le_a _, apply aleph_null_least_infinite_cardinal ⟨_, rfl⟩,
         rw card_finite_iff_finite, exact hAinf,
       nth_rewrite 0 ←card_mul_one_eq_self ⟨_, rfl⟩,
       rw card_mul_comm ⟨_, rfl⟩ (nat_is_cardinal one_nat),
-      refine card_mul_le_of_le (nat_is_cardinal one_nat) (nat_is_cardinal two_nat) _ ⟨_, rfl⟩,
+      refine card_mul_le_of_le_left (nat_is_cardinal one_nat) (nat_is_cardinal two_nat) _ ⟨_, rfl⟩,
       have one_fin : one.finite_cardinal, rw finite_cardinal_iff_nat, exact one_nat,
       have two_fin : two.finite_cardinal, rw finite_cardinal_iff_nat, exact two_nat,
       rw [finite_card_le_iff_le one_fin two_fin, le_iff, two],
@@ -1598,7 +1695,7 @@ begin
     rw [←hB, ←union_diff_eq_self_of_subset hAB, card_add_spec rfl rfl self_inter_diff_empty],
     change (A₀.card.card_add (B \ A₀).card).card_le μ, rw ←μpμ, apply card_le_trans (mul_cardinal (nat_is_cardinal two_nat) ⟨A₀, rfl⟩),
       rw ←card_add_self_eq_two_mul_self ⟨_, rfl⟩, exact card_add_le_of_le_right ⟨_, rfl⟩ ⟨_, rfl⟩ hlt.left ⟨_, rfl⟩,
-    exact card_mul_le_of_le ⟨_, card_nat two_nat⟩ ⟨_, rfl⟩ (nat_le_inf two_nat hAinf) ⟨_, rfl⟩,
+    exact card_mul_le_of_le_left ⟨_, card_nat two_nat⟩ ⟨_, rfl⟩ (nat_le_inf two_nat hAinf) ⟨_, rfl⟩,
   rw kem, exact μpμ,
 end
 
@@ -1607,13 +1704,13 @@ begin
   rw [card_add_self_eq_two_mul_self hκ],
   apply card_eq_of_le_of_le (mul_cardinal (nat_is_cardinal two_nat) hκ) hκ,
     nth_rewrite 1 ←mul_infinite_card_eq_self hκ hinf,
-    refine card_mul_le_of_le (nat_is_cardinal two_nat) hκ _ hκ,
+    refine card_mul_le_of_le_left (nat_is_cardinal two_nat) hκ _ hκ,
     have two_le_a : two.card_le (card ω), rw card_le_iff, left, apply finite_card_lt_aleph_null,
       rw finite_cardinal_iff_nat, exact two_nat,
     refine card_le_trans ⟨_, rfl⟩ two_le_a (aleph_null_least_infinite_cardinal hκ hinf),
   nth_rewrite 0 ←card_mul_one_eq_self hκ,
   rw card_mul_comm hκ (nat_is_cardinal one_nat),
-  refine card_mul_le_of_le (nat_is_cardinal one_nat) (nat_is_cardinal two_nat) _ hκ,
+  refine card_mul_le_of_le_left (nat_is_cardinal one_nat) (nat_is_cardinal two_nat) _ hκ,
   have one_fin : one.finite_cardinal, rw finite_cardinal_iff_nat, exact one_nat,
   have two_fin : two.finite_cardinal, rw finite_cardinal_iff_nat, exact two_nat,
   rw [finite_card_le_iff_le one_fin two_fin, le_iff, two],
@@ -1672,6 +1769,55 @@ begin
     exact card_exp_le_of_le hκ (exp_cardinal two_card hκ) (card_le_iff.mpr (or.inl (card_lt_exp hκ))) hκ,
   refine card_exp_le_of_le two_card hκ (finite_le_infinite' two_card _ hκ hinf) hκ,
   rw finite_cardinal_iff_nat, exact two_nat,
+end
+
+lemma card_fin_of_le_fin {κ : Set} (hκ : κ.is_cardinal) {μ : Set} (μfin : μ.finite_cardinal) (κμ : κ.card_le μ) : κ.finite_cardinal :=
+classical.by_contradiction (λ κinf, card_inf_of_ge_inf hκ κinf (fin_card_is_card μfin) κμ μfin)
+
+lemma inf_card_not_empty {κ : Set} (hκ : κ.is_cardinal) (hinf : ¬ κ.finite_cardinal) : κ ≠ ∅ :=
+begin
+  intro κz, subst κz, rw [←card_nat zero_nat, card_finite_iff_finite] at hinf,
+  exact hinf (nat_finite zero_nat),
+end
+
+lemma card_not_empty_iff_ge_one {κ : Set} (hκ : κ.is_cardinal) : κ ≠ ∅ ↔ one.card_le κ :=
+begin
+  split,
+    intro κz, rcases hκ with ⟨K, hK⟩, subst hK,
+    have Kz : K ≠ ∅, intro Kz, subst Kz, exact κz (card_nat zero_nat),
+    obtain ⟨x, xK⟩ := inhabited_of_ne_empty Kz,
+    rw ←@card_singleton x, apply card_le_of_subset, intro z, rw mem_singleton, intro zx, subst zx, exact xK,
+  intros h κz, subst κz,
+  have o : one ∈ ω := one_nat,
+  have z : ∅ ∈ ω := zero_nat,
+  rw ←finite_cardinal_iff_nat at o z,
+  rw finite_card_le_iff_le o z at h, cases h,
+    exact mem_empty _ h,
+  apply mem_empty ∅, nth_rewrite 1 ←h, exact zero_lt_one,
+end
+
+lemma card_mul_lt_mul {κ : Set} (hκ : κ.is_cardinal) {μ : Set} (hμ : μ.is_cardinal) (κμ : κ.card_lt μ) :
+  (κ.card_mul κ).card_lt (μ.card_mul μ) :=
+begin
+  by_cases μfin : μ.finite_cardinal,
+    have κfin := card_fin_of_le_fin hκ μfin κμ.left,
+    rw [finite_card_lt_iff_lt (card_mul_fin_of_fin κfin κfin) (card_mul_fin_of_fin μfin μfin),
+      card_mul_eq_ord_mul κfin κfin, card_mul_eq_ord_mul μfin μfin],
+    rw finite_card_lt_iff_lt κfin μfin at κμ,
+    rw finite_cardinal_iff_nat at μfin,
+    apply mul_lt_mul_of_lt' μfin κμ,
+  by_cases κz : κ = ∅,
+    subst κz, rwa [card_mul_empty (nat_is_cardinal zero_nat), mul_infinite_card_eq_self hμ μfin],
+  refine ⟨card_le_trans (mul_cardinal hμ hκ) (card_mul_le_of_le_left hκ hμ κμ.left hκ) (card_mul_le_of_le_right hκ hμ κμ.left hμ), λ h, _⟩,
+  have κκ : κ.card_le (κ.card_mul κ),
+    nth_rewrite 0 ←card_mul_one_eq_self hκ,
+    change κ ≠ ∅ at κz, rw card_not_empty_iff_ge_one hκ at κz,
+    exact card_mul_le_of_le_right (nat_is_cardinal one_nat) hκ κz hκ,
+  rw card_le_iff at κκ, cases κκ, rotate,
+    rw [κκ, h, mul_infinite_card_eq_self hμ μfin] at κμ, exact κμ.right rfl,
+  have κfin : κ.finite_cardinal, apply classical.by_contradiction, intro κinf,
+    rw mul_infinite_card_eq_self hκ κinf at κκ, exact κκ.right rfl,
+  apply μfin, rw [←mul_infinite_card_eq_self hμ μfin, ←h], exact card_mul_fin_of_fin κfin κfin,
 end
 
 end Set

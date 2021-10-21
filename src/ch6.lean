@@ -12,9 +12,22 @@ structure correspondence (A B f : Set) : Prop :=
 (onto : f.onto_fun A B)
 (oto : f.one_to_one)
 
+lemma id_corr {A : Set} : A.correspondence A A.id :=
+⟨id_onto, id_oto⟩
+
+lemma empty_corr_empty : correspondence ∅ ∅ ∅ :=
+⟨empty_onto, empty_oto⟩
+
 def equinumerous (A B : Set) : Prop := ∃ f : Set, A.correspondence B f
 infix ≈ := equinumerous
 infix ≉ := (λ A B : Set, ¬(A ≈ B))
+
+lemma empty_of_equin_empty {A : Set} (Ae : A ≈ ∅) : A = ∅ :=
+begin
+  rcases Ae with ⟨f, fonto, foto⟩, rw [←fonto.right.left, eq_empty],
+  intros x xf, rw mem_dom at xf, rcases xf with ⟨y, xyf⟩, apply mem_empty y,
+  rw ←fonto.right.right, rw mem_ran, exact ⟨_, xyf⟩,
+end
 
 def nat_prod_nat_equin_nat : prod nat.{u} nat.{u} ≈ nat.{u} :=
 begin

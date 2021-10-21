@@ -3,6 +3,188 @@ universe u
 namespace Set
 
 local attribute [irreducible] mem
+local attribute [instance] classical.prop_decidable
+
+lemma finite_lin_order_is_well_order {A R : Set.{u}} (Afin : A.is_finite) (lin : A.lin_order R) : A.well_order R :=
+begin
+  rw well_order_iff_not_exists_desc_chain lin, rintro ⟨f, finto, hd⟩,
+  refine nat_infinite (finite_of_dominated_by_finite Afin ⟨_, finto, _⟩),
+  have h : ∀ {n : Set.{u}}, n ∈ nat.{u} → ∀ {m : Set}, m ∈ nat.{u} → n ∈ m → (f.fun_value m).pair (f.fun_value n) ∈ R,
+    intros n nω m mω nm, rw lt_iff nω mω at nm, rcases nm with ⟨k, kω, nkm⟩, subst nkm, clear mω, revert k,
+    refine @induction _ _ _,
+      rw [add_ind nω zero_nat, add_base nω], exact hd nω,
+    intros k kω ind,
+    have kω' := nat_induct.succ_closed kω,
+    rw add_ind nω kω', exact lin.trans (hd (add_into_nat nω kω')) ind,
+  apply one_to_one_of finto.left, rw finto.right.left,
+  intros m mω n nω mn fmn,
+  obtain (mln|nlm) := nat_order_conn mω nω mn,
+    specialize h mω nω mln, rw fmn at h, exact lin.irrefl h,
+  specialize h nω mω nlm, rw fmn at h, exact lin.irrefl h,
+end
+
+lemma exists_smallest {A R : Set} (Ane : A ≠ ∅) (Afin : A.is_finite) (lin : A.lin_order R) :
+  ∃ x : Set, x ∈ A ∧ ∀ {y : Set}, y ∈ A → y ≠ x → x.pair y ∈ R :=
+begin
+  obtain ⟨x, xA, xle⟩ := (finite_lin_order_is_well_order Afin lin).well Ane subset_self,
+  refine ⟨x, xA, λ y yA yx, _⟩, apply classical.by_contradiction, intro xy, apply xle,
+  cases lin.conn yA xA yx with yx xy',
+    exact ⟨_, yA, yx⟩,
+  exfalso, exact xy xy',
+end
+
+noncomputable def smallest (A R : Set) : Set :=
+if Ane : A ≠ ∅ then
+if fin : A.is_finite then
+if lin : A.lin_order R then
+classical.some (exists_smallest Ane fin lin)
+else ∅ else ∅ else ∅
+lemma smallest_mem {A R : Set} (Ane : A ≠ ∅) (Afin : A.is_finite) (lin : A.lin_order R) :
+  A.smallest R ∈ A :=
+begin
+  rw [smallest, dif_pos Ane, dif_pos Afin, dif_pos lin],
+  obtain ⟨xA, h⟩ := classical.some_spec (exists_smallest Ane Afin lin), exact xA,
+end
+lemma smallest_smallest {A R : Set} (Ane : A ≠ ∅) (Afin : A.is_finite) (lin : A.lin_order R)
+  {y : Set} (yA : y ∈ A) (yx : y ≠ A.smallest R) : (A.smallest R).pair y ∈ R :=
+begin
+  rw [smallest, dif_pos Ane, dif_pos Afin, dif_pos lin] at yx ⊢,
+  obtain ⟨xA, h⟩ := classical.some_spec (exists_smallest Ane Afin lin), exact h yA yx,
+end
+
+lemma finite_lin_order_iso_nat {A : Set} (fin : A.is_finite)
+  {R : Set} (Rlin : A.lin_order R) : isomorphic A.card.eps_order_struct ⟨A, R, Rlin.rel⟩ :=
+begin
+  revert A,
+  have h : ∀ {n : Set}, n ∈ ω → ∀ {A : Set}, A.card = n →
+    ∀ {R : Set}, ∀ (Rlin : A.lin_order R), isomorphic n.eps_order_struct ⟨A, R, Rlin.rel⟩,
+    refine @induction _ _ _,
+      intros A Acard R Rlin,
+      have Ae := eq_empty_of_card_empty Acard, subst Ae,
+      refine ⟨_, empty_corr_empty, _⟩, dsimp, intros x y xe,
+      exfalso, exact mem_empty _ xe,
+    intros n nω ind A Acard R Rlin,
+    have Ane : A ≠ ∅, apply ne_empty_of_zero_mem_card, rw Acard, exact zero_mem_succ nω,
+    have Afin : A.is_finite, rw finite_iff, exact ⟨_, nat_induct.succ_closed nω, Acard⟩,
+    let x := A.smallest R,
+    let B := A \ {x},
+    have ABx : A = B ∪ {x} := (diff_singleton_union_eq (smallest_mem Ane Afin Rlin)).symm,
+    have Bcard : B.card = n,
+      have Bfin : B.is_finite := subset_finite_of_finite Afin subset_diff,
+      rw finite_iff at Bfin, rcases Bfin with ⟨m, mω, Bm⟩, rw Bm,
+      apply cancel_add_right mω nω one_nat,
+      rw [←succ_eq_add_one nω, ←Acard, ABx,
+        ←card_add_eq_ord_add ⟨_, nat_finite mω, card_nat mω⟩ ⟨_, nat_finite one_nat, card_nat one_nat⟩,
+        ←Bm, ←@card_singleton x, ←card_add_spec rfl rfl],
+      rw [←@self_inter_diff_empty {x} A, inter_comm],
+    let S := R \ (prod {x} A),
+    have Slin : B.lin_order S, split,
+      { simp only [subset_def, mem_diff, mem_prod, exists_prop, mem_singleton, mem_diff],
+        rintros z ⟨zR, h⟩, have zA : z ∈ A.prod A := Rlin.rel zR,
+        rw mem_prod at zA, rcases zA with ⟨a, aA, b, bA, zab⟩, subst zab,
+        refine ⟨_, ⟨aA, λ ax, h ⟨_, ax, _, bA, rfl⟩⟩, _, ⟨bA, λ bx, _⟩, rfl⟩,
+        refine not_lt_and_gt_part (part_order_of_lin_order Rlin) ⟨zR, _⟩,
+        rw bx, apply smallest_smallest Ane Afin Rlin aA, intro ax, rw [bx, ax] at zR,
+        exact Rlin.irrefl zR, },
+      { intros a b c ab bc, rw [mem_diff, pair_mem_prod, mem_singleton] at ab bc ⊢,
+        refine ⟨Rlin.trans ab.left bc.left, _⟩, rintro ⟨ax, cA⟩, apply ab.right,
+        have abA : a.pair b ∈ A.prod A := Rlin.rel ab.left,
+        rw pair_mem_prod at abA, exact ⟨ax, abA.right⟩, },
+      { intros x xx, rw mem_diff at xx, exact Rlin.irrefl xx.left, },
+      { intros a b aB bB ab, simp only [mem_diff, pair_mem_prod, mem_singleton] at aB bB ⊢,
+        cases Rlin.conn aB.left bB.left ab,
+          exact or.inl ⟨h, λ h, aB.right h.left⟩,
+        exact or.inr ⟨h, λ h, bB.right h.left⟩, },
+    specialize ind Bcard Slin, rcases ind with ⟨f, ⟨fonto, foto⟩, fiso⟩, dsimp at fiso fonto,
+    have de : (pair_sep_eq n.succ A (λ k, if k = ∅ then x else f.fun_value (pred.fun_value k))).dom = n.succ,
+      apply pair_sep_eq_dom_eq, intros k kn, dsimp,
+      have kω : k ∈ ω := mem_nat_of_mem_nat_of_mem (nat_induct.succ_closed nω) kn,
+      by_cases kz : k = ∅,
+        subst kz, rw if_pos rfl, exact smallest_mem Ane Afin Rlin,
+      rw if_neg kz, obtain ⟨k', kω', kk'⟩ := or.resolve_left (exists_pred kω) kz, subst kk',
+      rw pred_succ_eq_self kω',
+      have fkB : f.fun_value k' ∈ B, rw ←fonto.right.right, apply fun_value_def'' fonto.left,
+        rw [fonto.right.left, mem_iff_succ_mem_succ kω' nω], exact kn,
+      rw mem_diff at fkB, exact fkB.left,
+    refine ⟨pair_sep_eq n.succ A (λ k, if k = ∅ then x else f.fun_value (pred.fun_value k)),
+      ⟨⟨pair_sep_eq_is_fun, de, pair_sep_eq_ran_eq _⟩, pair_sep_eq_oto _⟩, _⟩,
+    { intros y yA, by_cases yx : y = x,
+        refine ⟨_, zero_mem_succ nω, _⟩, dsimp, rw if_pos rfl, exact yx,
+      have yB : y ∈ B, rw [mem_diff, mem_singleton], exact ⟨yA, yx⟩,
+      rw [←fonto.right.right, mem_ran_iff fonto.left, fonto.right.left] at yB,
+      rcases yB with ⟨k, kn, yk⟩,
+      have kω := mem_nat_of_mem_nat_of_mem nω kn, subst yk, refine ⟨_, (mem_iff_succ_mem_succ kω nω).mp kn, _⟩,
+      dsimp, rw [if_neg succ_neq_empty, pred_succ_eq_self kω], },
+    { intros m mn k kn fmk,
+      have kω := mem_nat_of_mem_nat_of_mem (nat_induct.succ_closed nω) kn,
+      have mω := mem_nat_of_mem_nat_of_mem (nat_induct.succ_closed nω) mn,
+      dsimp at fmk,
+      by_cases mz : m = ∅, subst mz, rw if_pos rfl at fmk,
+        by_cases kz : k = ∅, subst kz,
+        rw if_neg kz at fmk, obtain ⟨k', kω', kk'⟩ := or.resolve_left (exists_pred kω) kz, subst kk',
+        rw pred_succ_eq_self kω' at fmk,
+        have xB : x ∈ B, rw [←fonto.right.right, mem_ran_iff fonto.left, fonto.right.left],
+          use k', rw mem_iff_succ_mem_succ kω' nω, exact ⟨kn, fmk⟩,
+        rw [mem_diff, mem_singleton] at xB, exfalso, exact xB.right rfl,
+      rw if_neg mz at fmk, obtain ⟨m', mω', mm'⟩ := or.resolve_left (exists_pred mω) mz, subst mm',
+      rw pred_succ_eq_self mω' at fmk,
+      by_cases kz : k = ∅,
+        subst kz, rw if_pos rfl at fmk,
+        have xB : x ∈ B, rw [←fonto.right.right, mem_ran_iff fonto.left, fonto.right.left],
+          use m', rw mem_iff_succ_mem_succ mω' nω, exact ⟨mn, fmk.symm⟩,
+        rw [mem_diff, mem_singleton] at xB, exfalso, exact xB.right rfl,
+      rw if_neg kz at fmk, obtain ⟨k', kω', kk'⟩ := or.resolve_left (exists_pred kω) kz, subst kk',
+      rw pred_succ_eq_self kω' at fmk, congr,
+      rw ←mem_iff_succ_mem_succ mω' nω at mn, rw ←mem_iff_succ_mem_succ kω' nω at kn,
+      rw ←fonto.right.left at mn kn, exact from_one_to_one fonto.left foto mn kn fmk, },
+    { rw [eps_order_struct_fld, eps_order_struct_rel], dsimp, intros m k mn kn,
+      have kω := mem_nat_of_mem_nat_of_mem (nat_induct.succ_closed nω) kn,
+      have mω := mem_nat_of_mem_nat_of_mem (nat_induct.succ_closed nω) mn,
+      rw [pair_mem_eps_order' mn kn], rw ←de at mn kn,
+      rw [pair_sep_eq_fun_value mn, pair_sep_eq_fun_value kn], dsimp, rw de at mn kn,
+      by_cases kz : k = ∅,
+        subst kz, rw if_pos rfl,
+        by_cases mz : m = ∅,
+          subst mz, rw if_pos rfl, split,
+            intro ee, exfalso, exact mem_empty _ ee,
+          intro xx, exfalso, exact Rlin.irrefl xx,
+        rw if_neg mz, obtain ⟨m', mω', mm'⟩ := or.resolve_left (exists_pred mω) mz, subst mm',
+        rw pred_succ_eq_self mω', split,
+          intro mz', exfalso, exact mem_empty _ mz',
+        intro fmx,
+        have fmA : f.fun_value m' ∈ B, rw ←fonto.right.right,
+          apply fun_value_def'' fonto.left, rw [fonto.right.left, mem_iff_succ_mem_succ mω' nω],
+          exact mn,
+        rw [mem_diff, mem_singleton] at fmA, exfalso,
+        exact not_lt_and_gt_part (part_order_of_lin_order Rlin) ⟨fmx, smallest_smallest Ane Afin Rlin fmA.left fmA.right⟩,
+      rw if_neg kz, obtain ⟨k', kω', kk'⟩ := or.resolve_left (exists_pred kω) kz, subst kk',
+      rw pred_succ_eq_self kω',
+      by_cases mz : m = ∅,
+        subst mz, rw if_pos rfl,
+        have fkB : f.fun_value k' ∈ B, rw ←fonto.right.right, apply fun_value_def'' fonto.left,
+          rw [fonto.right.left, mem_iff_succ_mem_succ kω' nω], exact kn,
+        rw [mem_diff, mem_singleton] at fkB, split,
+          intro zk, exact smallest_smallest Ane Afin Rlin fkB.left fkB.right,
+        intro xfk, exact zero_mem_succ kω',
+      rw if_neg mz, obtain ⟨m', mω', mm'⟩ := or.resolve_left (exists_pred mω) mz, subst mm',
+      rw [pred_succ_eq_self mω', ←mem_iff_succ_mem_succ mω' kω'],
+      rw ←mem_iff_succ_mem_succ mω' nω at mn, rw ←mem_iff_succ_mem_succ kω' nω at kn,
+      specialize fiso mn kn, rw [pair_mem_eps_order' mn kn, mem_diff] at fiso, rw fiso,
+      simp only [pair_mem_prod, not_and, and_iff_left_iff_imp, mem_singleton],
+      intros fmk fmx fkA,
+      have fmB : f.fun_value m' ∈ B, rw ←fonto.right.right, apply fun_value_def'' fonto.left,
+        rw fonto.right.left, exact mn,
+      rw [mem_diff, mem_singleton] at fmB, exact fmB.right fmx, },
+  intros A Afin Rlin,
+  rw finite_iff at Afin, rcases Afin with ⟨n, nω, Acard⟩,
+  rw Acard, exact h nω Acard Rlin,
+end
+
+-- problem 19 chapter 7
+lemma finite_lin_order_iso {A : Set} (fin : A.is_finite)
+  {R : Set} (Rlin : A.lin_order R) {S : Set} (Slin : A.lin_order S) :
+  isomorphic ⟨A, R, Rlin.rel⟩ ⟨A, S, Slin.rel⟩ :=
+iso_trans (iso_symm (finite_lin_order_iso_nat fin Rlin)) (finite_lin_order_iso_nat fin Slin)
 
 -- chapter 7 exercise 20
 lemma finite_of_well_orderings {A R : Set} (Rwell : A.well_order R) (Rwell' : A.well_order R.inv) : A.is_finite :=
@@ -159,8 +341,6 @@ begin
   dsimp, rw [restrict_ran, seg_eq_of_trans (ordinal_trans δord) αδ],
 end
 
-local attribute [instance] classical.prop_decidable
-
 noncomputable def L7Q_fun (δ : Set) : Set := if δord : δ.is_ordinal then classical.some (L7Q δord) else ∅
 lemma L7Q_fun_spec {δ : Set} (δord : δ.is_ordinal) :
   δ.L7Q_fun.is_function ∧ δ.L7Q_fun.dom = δ ∧ ∀ ⦃α : Set⦄, α ∈ δ → δ.L7Q_fun.fun_value α = ((δ.L7Q_fun.img α).powersets).Union :=
@@ -240,6 +420,23 @@ begin
   cases succ_least_upper_bound γord.ord βγ,
     exact h,
   exfalso, exact γord.ns ⟨_, h.symm⟩,
+end
+
+lemma limit_ord_of_not_bound {γ : Set} (γord : γ.is_ordinal) (γne : γ ≠ ∅)
+  (h : ¬ ∃ β : Set, β ∈ γ ∧ ∀ {α : Set}, α ∈ γ → α ≤ β) : γ.limit_ord :=
+begin
+  refine ⟨γord, γne, _⟩, rintro ⟨β, βγ⟩, apply h, subst βγ, refine ⟨_, self_mem_succ, λ α αβ, _⟩,
+  rw ←mem_succ_iff_le, exact αβ,
+end
+
+lemma limit_ord_not_bounded {γ : Set} (γord : γ.limit_ord) :
+  ¬ ∃ β : Set, β ∈ γ ∧ ∀ {α : Set}, α ∈ γ → α ≤ β :=
+begin
+  rintro ⟨β, βγ, h⟩,
+  specialize h (succ_mem_limit γord βγ),
+  have βord := ord_of_mem_ord γord.ord βγ,
+  rw ←ord_not_lt_iff_le βord (succ_ord_of_ord βord) at h,
+  exact h self_mem_succ,
 end
 
 lemma limit_ord_inf {γ : Set} (γord : γ.limit_ord) : ¬ γ.is_finite :=
@@ -589,6 +786,11 @@ begin
   exfalso, exact no_2_cyle ⟨bma, amb⟩,
 end
 
+theorem self_ne_succ {x : Set} : x.succ ≠ x :=
+begin
+  intro xx, apply @not_mem_self x, nth_rewrite 1 ←xx, exact self_mem_succ,
+end
+
 lemma eq_iff_le_and_le {a b : Set} : a = b ↔ a ≤ b ∧ b ≤ a :=
 begin
   split,
@@ -611,6 +813,176 @@ begin
       exact ⟨αγ', succ_least_upper_bound γord.ord αγ⟩,
     exact ⟨_, αγ', self_mem_succ⟩,
   exact (ordinal_trans γord.ord),
+end
+
+theorem zero_ne_succ_ord {α : Set} : ∅ ≠ α.succ :=
+λ h, mem_empty α (by rw h; exact self_mem_succ)
+
+theorem zero_mem_succ_ord {α : Set} (αord : α.is_ordinal) : ∅ ∈ α.succ :=
+begin
+  apply classical.by_contradiction, intro zα,
+  rw ord_not_lt_iff_le zero_is_ord (succ_ord_of_ord αord) at zα, cases zα,
+    exact mem_empty _ zα,
+  exact zero_ne_succ_ord zα.symm,
+end
+
+theorem succ_ord_not_le_self {α : Set} (αord : α.is_ordinal) : ¬ (α.succ ≤ α) :=
+λ αα, ord_mem_irrefl αord (ord_lt_of_lt_of_le αord self_mem_succ αα)
+
+theorem ord_lt_of_succ_le {α : Set} (αord : α.is_ordinal) {β : Set} (βord : β.is_ordinal)
+  (h : α.succ ≤ β) : α ∈ β :=
+begin
+  apply classical.by_contradiction, intro αβ,
+  rw ord_not_lt_iff_le αord βord at αβ, exact succ_ord_not_le_self αord (ord_le_trans αord h αβ),
+end
+
+theorem ord_pos_of_inhab : ∀ {α : Set}, α.is_ordinal → α.inhab → ∅ ∈ α :=
+begin
+  apply @trans_ind_schema (λ α, α.inhab → ∅ ∈ α),
+  rintros α αord ind ⟨β, βα⟩,
+  by_cases hβ : β.inhab,
+    exact ord_mem_trans αord (ind βα hβ) βα,
+  have βz : β = ∅, rw eq_empty, intros δ δβ, exact hβ ⟨_, δβ⟩,
+  subst βz, exact βα,
+end
+
+theorem ord_succ_lt_iff : ∀ {α : Set}, α.is_ordinal → ∀ {β : Set}, β.is_ordinal →
+  (α ∈ β ↔ α.succ ∈ β.succ) :=
+have h : ∀ {α β : Set}, β.is_ordinal → α ∈ β → α.succ ∈ β.succ,
+  from λ α β βord αβ, ord_lt_of_le_of_lt (succ_ord_of_ord βord) (succ_least_upper_bound βord αβ) self_mem_succ,
+λ α αord β βord,
+⟨h βord, λ αβ, classical.by_contradiction (λ βα, begin
+  rw ord_not_lt_iff_le αord βord at βα, cases βα,
+    exact ord_mem_irrefl (succ_ord_of_ord βord) (ord_mem_trans (succ_ord_of_ord βord) (h αord βα) αβ),
+  subst βα, exact ord_mem_irrefl (succ_ord_of_ord βord) αβ,
+end)⟩
+
+theorem ord_succ_inj {α : Set} (αord : α.is_ordinal) {β : Set} (βord : β.is_ordinal)
+  (sαβ : α.succ = β.succ) : α = β :=
+begin
+  apply classical.by_contradiction, intro ne,
+  cases ord_conn αord βord ne with αβ βα,
+    rw ord_succ_lt_iff αord βord at αβ, rw sαβ at αβ,
+    exact ord_mem_irrefl (succ_ord_of_ord βord) αβ,
+  rw ord_succ_lt_iff βord αord at βα, rw sαβ at βα,
+  exact ord_mem_irrefl (succ_ord_of_ord βord) βα,
+end
+
+theorem ord_succ_le_iff {α : Set} (αord : α.is_ordinal) {β : Set} (βord : β.is_ordinal) :
+  α ≤ β ↔ α.succ ≤ β.succ :=
+⟨λ αβ, αβ.elim (λ h, by left; rwa ←ord_succ_lt_iff αord βord) (λ h, by right; rw h),
+λ αβ, αβ.elim (λ h, by left; rwa ord_succ_lt_iff αord βord) (λ h, or.inr (ord_succ_inj αord βord h))⟩
+
+theorem empty_le_ord {α : Set} (αord : α.is_ordinal) : ∅ ≤ α :=
+(ord_le_iff_sub zero_is_ord αord).mpr empty_subset
+
+theorem limit_ord_inhab {γ : Set} (γord : γ.limit_ord) : γ.inhab :=
+inhab_of_inf (limit_ord_inf γord)
+
+theorem limit_ord_pos {γ : Set} (γord : γ.limit_ord) : ∅ ∈ γ :=
+ord_pos_of_inhab γord.ord (limit_ord_inhab γord)
+
+theorem ord_eq_zero_of_le_zero {α : Set} (αord : α.is_ordinal) (hα : α ≤ ∅) : α = ∅ :=
+or.elim hα (λ h, false.elim (mem_empty _ h)) (λ h, h)
+
+theorem not_zero_of_pos {α : Set} (hα : ∅ ∈ α) : α ≠ ∅ :=
+ne_empty_of_inhabited _ ⟨_, hα⟩
+
+lemma ord_cases {α : Set} (αord : α.is_ordinal) : α = ∅ ∨ (∃ β : Set, α = β.succ) ∨ α.limit_ord :=
+classical.by_cases (λ αz : α = ∅, or.inl αz) (λ αnz, or.inr (
+  classical.by_cases (λ ex : ∃ β : Set, α = β.succ, or.inl ex) (λ nex, or.inr ⟨αord, αnz, nex⟩)))
+
+lemma card_is_card {α : Set} : α.card.is_cardinal :=
+⟨_, rfl⟩
+
+lemma card_pos_of_inhab {A : Set} (Ain : A.inhab) : ∅ ∈ A.card :=
+begin
+  cases @empty_le_ord A.card (card_is_ord card_is_card),
+    exact h,
+  exfalso, exact @ne_empty_of_inhabited _ Ain (eq_empty_of_card_empty h.symm),
+end
+
+lemma card_ge_one_of_inhab {A : Set} (Ain : A.inhab) : one ≤ A.card :=
+succ_least_upper_bound (card_is_ord card_is_card) (card_pos_of_inhab Ain)
+
+lemma ne_of_mem {A B : Set} (AB : A ∈ B) : A ≠ B :=
+begin
+  intro h, rw h at AB, apply not_mem_self AB,
+end
+
+lemma not_succ_le_empty {α : Set} : ¬ α.succ ≤ ∅ :=
+λ h, or.elim h (λ h', mem_empty _ h') (λ h', zero_ne_succ_ord h'.symm)
+
+lemma card_succ_eq {A : Set} : A.succ.card = A.card.card_add one :=
+begin
+  have h : A ∩ {A} = ∅, rw eq_empty, intros z hz, rw [mem_inter, mem_singleton] at hz,
+    rcases hz with ⟨zA, zA'⟩, subst zA', exact not_mem_self zA,
+  rw [succ, union_comm, card_add_spec rfl rfl h, card_singleton],
+end
+
+lemma succ_imm (m : Set) : ¬ ∃ k : Set, m ∈ k ∧ k ∈ m.succ :=
+begin
+  rintro ⟨k, mk, km⟩, rw [succ, mem_union, mem_singleton] at km, cases km,
+    subst km, exact not_mem_self mk,
+  exact no_2_cyle ⟨mk, km⟩,
+end
+
+lemma card_le_conn {κ : Set} (κcard : κ.is_cardinal) {μ : Set} (μcard : μ.is_cardinal) : κ.card_le μ ∨ μ.card_le κ :=
+begin
+  rcases κcard with ⟨K, Kcard⟩, rcases μcard with ⟨M, Mcard⟩,
+  subst Kcard, subst Mcard, simp only [card_le_iff_equin'],
+  cases ax_ch_5 K M with KM MK,
+    left, exact KM,
+  right, exact MK,
+end
+
+lemma card_not_lt_iff_le {κ : Set} (κcard : κ.is_cardinal) {μ : Set} (μcard : μ.is_cardinal) :
+  ¬ κ.card_lt μ ↔ μ.card_le κ :=
+begin
+  split,
+    intro κμ, rcases card_le_conn κcard μcard with (κμ'|μκ),
+      rw card_le_iff at κμ', cases κμ',
+        exfalso, exact κμ κμ',
+      subst κμ', rw card_le_iff, right, refl,
+    exact μκ,
+  intros μκ κμ, rw card_le_iff at μκ, cases μκ,
+    exact not_card_lt_cycle κcard μcard ⟨κμ, μκ⟩,
+  subst μκ, exact κμ.right rfl,
+end
+
+lemma card_not_le_iff_lt {κ : Set} (κcard : κ.is_cardinal) {μ : Set} (μcard : μ.is_cardinal) :
+  ¬ κ.card_le μ ↔ μ.card_lt κ :=
+by simp only [←card_not_lt_iff_le μcard κcard, not_not]
+
+lemma card_le_of_ord_mem {α : Set} (αord : α.is_ordinal) {β : Set} (βα : β ∈ α) : β.card.card_le α.card :=
+begin
+  have βord := ord_of_mem_ord αord βα,
+  rw ord_mem_iff_ssub βord αord at βα, exact card_le_of_subset βα.left,
+end
+
+lemma card_lt_iff_ord_mem {α : Set} (αord : α.is_ordinal) {β : Set} (βord : β.is_ordinal)
+  (h : α.card.card_lt β.card) : α ∈ β :=
+begin
+  rcases h with ⟨le, ne⟩, rw ←ord_not_le_iff_lt βord αord, rintro (h|h),
+    exact ne (card_eq_of_le_of_le card_is_card card_is_card le (card_le_of_ord_mem αord h)),
+  subst h, exact ne rfl,
+end
+
+lemma card_le_of_ord_le {α : Set} (αord : α.is_ordinal) {β : Set} (βα : β ≤ α) : β.card.card_le α.card :=
+begin
+  cases βα,
+    exact card_le_of_ord_mem αord βα,
+  subst βα, exact card_le_refl,
+end
+
+lemma card_mul_lt_of_lt_of_lt {ν : Set} (hν : ν.is_cardinal) {κ : Set} (hκ : κ.is_cardinal) (κν : κ.card_lt ν)
+  {μ : Set} (hμ : μ.is_cardinal) (μν : μ.card_lt ν) : (κ.card_mul μ).card_lt (ν.card_mul ν) :=
+begin
+  cases card_le_conn hκ hμ with κμ μκ,
+    apply card_lt_of_le_of_lt (mul_cardinal hκ hμ) (mul_cardinal hμ hμ) (card_mul_le_of_le_left hκ hμ κμ hμ),
+    exact card_mul_lt_mul hμ hν μν,
+  apply card_lt_of_le_of_lt (mul_cardinal hκ hμ) (mul_cardinal hκ hκ) (card_mul_le_of_le_right hμ hκ μκ hκ),
+  exact card_mul_lt_mul hκ hν κν,
 end
 
 end Set
